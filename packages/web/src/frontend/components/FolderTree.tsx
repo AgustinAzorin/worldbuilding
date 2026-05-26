@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useTransition } from 'react'
+import { useState, useCallback, useTransition, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -40,13 +40,15 @@ interface FolderNodeItemProps {
   worldId: string
   depth?: number
   onMutated: () => void
+  allFolders: Folder[]
 }
 
-function FolderNodeItem({ node, worldId, depth = 0, onMutated }: FolderNodeItemProps) {
+function FolderNodeItem({ node, worldId, depth = 0, onMutated, allFolders }: FolderNodeItemProps) {
   const [expanded, setExpanded] = useState(true)
   const [renaming, setRenaming] = useState(false)
   const [nameInput, setNameInput] = useState(node.name)
   const [isPending, startTransition] = useTransition()
+  const [isDragOver, setIsDragOver] = useState(false)
 
   const handleRename = useCallback(async () => {
     const trimmed = nameInput.trim()
@@ -71,6 +73,24 @@ function FolderNodeItem({ node, worldId, depth = 0, onMutated }: FolderNodeItemP
     startTransition(onMutated)
   }, [node.id, node.name, onMutated])
 
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsDragOver(false)
+      const articleId = e.dataTransfer.getData('text/plain')
+      if (!articleId) return
+      const token = await getToken()
+      await fetch(`${API()}/folders/articles/${articleId}/move`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ folderId: node.id }),
+      })
+      startTransition(onMutated)
+    },
+    [node.id, onMutated],
+  )
+
   const hasContent = node.children.length > 0 || node.articles.length > 0
   const indent = depth * 12
 
@@ -78,8 +98,11 @@ function FolderNodeItem({ node, worldId, depth = 0, onMutated }: FolderNodeItemP
     <div>
       {/* Folder header row */}
       <div
-        className="group flex items-center gap-1.5 py-1 px-2 rounded-md hover:bg-gray-100 cursor-pointer select-none"
+        className={`group flex items-center gap-1.5 py-1 px-2 rounded-md hover:bg-gray-100 cursor-pointer select-none transition-colors ${isDragOver ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : ''}`}
         style={{ paddingLeft: `${indent + 8}px` }}
+        onDragOver={e => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true) }}
+        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false) }}
+        onDrop={handleDrop}
       >
         {/* Chevron */}
         <button
@@ -148,6 +171,7 @@ function FolderNodeItem({ node, worldId, depth = 0, onMutated }: FolderNodeItemP
               worldId={worldId}
               depth={depth + 1}
               onMutated={onMutated}
+              allFolders={allFolders}
             />
           ))}
           {node.articles.map(article => (
@@ -156,6 +180,8 @@ function FolderNodeItem({ node, worldId, depth = 0, onMutated }: FolderNodeItemP
               article={article}
               worldId={worldId}
               depth={depth + 1}
+              folders={allFolders}
+              onMutated={onMutated}
             />
           ))}
         </div>
@@ -170,21 +196,104 @@ function ArticleItem({
   article,
   worldId,
   depth = 0,
+  folders = [],
+  onMutated,
 }: {
   article: ArticleListItem
   worldId: string
   depth?: number
+  folders?: Folder[]
+  onMutated?: () => void
 }) {
+  const [showMoveMenu, setShowMoveMenu] = useState(false)
+  const [, startTransition] = useTransition()
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showMoveMenu) return
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMoveMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [showMoveMenu])
+
+  const handleMove = useCallback(
+    async (targetFolderId: string | null) => {
+      const token = await getToken()
+      await fetch(`${API()}/folders/articles/${article.id}/move`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ folderId: targetFolderId }),
+      })
+      setShowMoveMenu(false)
+      if (onMutated) startTransition(onMutated)
+    },
+    [article.id, onMutated],
+  )
+
   return (
-    <Link
-      href={`/worlds/${worldId}/articles/${article.id}`}
-      className="flex items-center gap-1.5 py-1 px-2 rounded-md hover:bg-gray-100 text-sm text-gray-600 hover:text-blue-700 truncate"
-      style={{ paddingLeft: `${depth * 12 + 24}px` }}
-      title={article.title}
-    >
-      <span className="text-gray-400 shrink-0">📄</span>
-      <span className="truncate">{article.title}</span>
-    </Link>
+    <div className="relative group">
+      <div
+        draggable={!!onMutated}
+        onDragStart={e => {
+          e.dataTransfer.setData('text/plain', article.id)
+          e.dataTransfer.effectAllowed = 'move'
+        }}
+        className="flex items-center gap-1.5 py-1 px-2 rounded-md hover:bg-gray-100"
+        style={{ paddingLeft: `${depth * 12 + 24}px` }}
+      >
+        <Link
+          href={`/worlds/${worldId}/articles/${article.id}`}
+          className="flex items-center gap-1.5 flex-1 text-sm text-gray-600 hover:text-blue-700 min-w-0"
+          title={article.title}
+        >
+          <span className="text-gray-400 shrink-0">📄</span>
+          <span className="truncate">{article.title}</span>
+        </Link>
+
+        {onMutated && (
+          <button
+            onClick={e => { e.stopPropagation(); setShowMoveMenu(m => !m) }}
+            title="Mover artículo"
+            className="hidden group-hover:block text-gray-400 hover:text-blue-500 text-xs px-1 shrink-0"
+          >
+            ↗
+          </button>
+        )}
+      </div>
+
+      {showMoveMenu && (
+        <div
+          ref={menuRef}
+          className="absolute left-4 top-full z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-44 max-h-52 overflow-y-auto"
+        >
+          <div className="px-3 py-1 text-xs font-medium text-gray-500 border-b border-gray-100 mb-1">
+            Mover a…
+          </div>
+          <button
+            onClick={() => handleMove(null)}
+            disabled={article.folder_id === null}
+            className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <span>🌐</span><span>Raíz (sin carpeta)</span>
+          </button>
+          {folders.map(f => (
+            <button
+              key={f.id}
+              onClick={() => handleMove(f.id)}
+              disabled={article.folder_id === f.id}
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <span className="text-amber-500 shrink-0">📁</span>
+              <span className="truncate">{f.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -278,12 +387,25 @@ export function FolderTree({ worldId, folders, articles }: FolderTreeProps) {
     <nav className="py-2">
       {/* Folders (recursive) */}
       {tree.map(node => (
-        <FolderNodeItem key={node.id} node={node} worldId={worldId} onMutated={refresh} />
+        <FolderNodeItem
+          key={node.id}
+          node={node}
+          worldId={worldId}
+          onMutated={refresh}
+          allFolders={folders}
+        />
       ))}
 
       {/* Unsorted articles at world root */}
       {rootArticles.map(article => (
-        <ArticleItem key={article.id} article={article} worldId={worldId} depth={0} />
+        <ArticleItem
+          key={article.id}
+          article={article}
+          worldId={worldId}
+          depth={0}
+          folders={folders}
+          onMutated={refresh}
+        />
       ))}
 
       {/* Empty state */}

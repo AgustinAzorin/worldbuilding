@@ -94,6 +94,48 @@ export function GraphView({ worldId, data }: GraphViewProps) {
     [hoveredId],
   )
 
+  const nodeCanvasObject = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      const x = node.x as number
+      const y = node.y as number
+      const r = Math.sqrt((node.val as number) ?? 1) * 5
+      const isHovered = (node.id as string) === hoveredId
+
+      // Circle
+      ctx.beginPath()
+      ctx.arc(x, y, r, 0, 2 * Math.PI)
+      ctx.fillStyle = isHovered ? '#2563eb' : '#818cf8'
+      ctx.fill()
+
+      // Label below circle
+      const label = node.title as string
+      const fontSize = Math.max(6, 12 / globalScale)
+      ctx.font = `${fontSize}px Sans-Serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      const textWidth = ctx.measureText(label).width
+      const labelY = y + r + 3
+      ctx.fillStyle = 'rgba(3,7,18,0.6)'
+      ctx.fillRect(x - textWidth / 2 - 2, labelY - 1, textWidth + 4, fontSize + 3)
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'
+      ctx.fillText(label, x, labelY)
+    },
+    [hoveredId],
+  )
+
+  const nodePointerAreaPaint = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (node: any, color: string, ctx: CanvasRenderingContext2D) => {
+      const r = Math.sqrt((node.val as number) ?? 1) * 5
+      ctx.fillStyle = color
+      ctx.beginPath()
+      ctx.arc(node.x as number, node.y as number, r, 0, 2 * Math.PI)
+      ctx.fill()
+    },
+    [],
+  )
+
   if (data.nodes.length === 0) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-950 text-gray-500">
@@ -114,10 +156,12 @@ export function GraphView({ worldId, data }: GraphViewProps) {
         width={dimensions.width}
         height={dimensions.height}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        nodeLabel={(node: any) => node.title as string}
         nodeVal={(node: any) => (node.val as number) ?? 1}
         nodeColor={nodeColor}
         nodeRelSize={5}
+        nodeCanvasObject={nodeCanvasObject}
+        nodeCanvasObjectMode={() => 'replace'}
+        nodePointerAreaPaint={nodePointerAreaPaint}
         onNodeClick={handleNodeClick}
         onNodeHover={handleNodeHover}
         linkColor={() => 'rgba(148,163,184,0.45)'}
