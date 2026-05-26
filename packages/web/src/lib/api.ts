@@ -99,14 +99,14 @@ export const api = {
       token: string,
       worldId: string,
       title: string,
-      content: import('./types').TipTapContent,
-      metadata: import('./types').ArticleMetadata,
+      headerFields: import('./types').HeaderField[],
+      modules: import('./types').ArticleModule[],
     ) =>
       request<{ id: string }>('POST', '/articles', token, {
         worldId,
         title,
-        content,
-        metadata,
+        headerFields,
+        modules,
       }),
 
     update: (
@@ -114,14 +114,14 @@ export const api = {
       id: string,
       worldId: string,
       title: string,
-      content: import('./types').TipTapContent,
-      metadata: import('./types').ArticleMetadata,
+      headerFields: import('./types').HeaderField[],
+      modules: import('./types').ArticleModule[],
     ) =>
       request<void>('PATCH', `/articles/${id}`, token, {
         worldId,
         title,
-        content,
-        metadata,
+        headerFields,
+        modules,
       }),
 
     search: (token: string, worldId: string, q: string) =>

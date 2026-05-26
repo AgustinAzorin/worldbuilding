@@ -2,17 +2,19 @@
 
 import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArticleEditor } from './editor/ArticleEditor'
-import { MetadataPanel } from './MetadataPanel'
+import { HeaderFieldsEditor } from './HeaderFieldsEditor'
+import { ModulesEditor } from './ModulesEditor'
 import { createClient } from '@/lib/supabase/client'
-import type { ArticleMetadata, TipTapContent } from '@/lib/types'
+import type { ArticleModule, ArticleRef, HeaderField } from '@/lib/types'
 
 interface ArticleEditorFormProps {
   worldId: string
   articleId?: string
   initialTitle?: string
-  initialContent?: TipTapContent
-  initialMetadata?: ArticleMetadata
+  initialHeaderFields?: HeaderField[]
+  initialModules?: ArticleModule[]
+  initialOutgoing?: ArticleRef[]
+  initialIncoming?: ArticleRef[]
 }
 
 async function getToken(): Promise<string> {
@@ -26,12 +28,14 @@ export function ArticleEditorForm({
   worldId,
   articleId,
   initialTitle = '',
-  initialContent,
-  initialMetadata = {},
+  initialHeaderFields = [],
+  initialModules = [],
+  initialOutgoing = [],
+  initialIncoming = [],
 }: ArticleEditorFormProps) {
   const [title, setTitle] = useState(initialTitle)
-  const [content, setContent] = useState<TipTapContent | undefined>(initialContent)
-  const [metadata, setMetadata] = useState<ArticleMetadata>(initialMetadata)
+  const [headerFields, setHeaderFields] = useState<HeaderField[]>(initialHeaderFields)
+  const [modules, setModules] = useState<ArticleModule[]>(initialModules)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -41,12 +45,16 @@ export function ArticleEditorForm({
     const trimmedTitle = title.trim()
     if (!trimmedTitle) { setError('El título no puede estar vacío'); return }
 
-    const finalContent: TipTapContent = content ?? { type: 'doc', content: [{ type: 'paragraph' }] }
     setSaving(true); setError(null); setSaved(false)
 
     try {
       const token = await getToken()
-      const payload = { worldId, title: trimmedTitle, content: finalContent, metadata }
+      const payload = {
+        worldId,
+        title: trimmedTitle,
+        headerFields,
+        modules,
+      }
 
       if (articleId) {
         const res = await fetch(`${API_URL()}/articles/${articleId}`, {
@@ -59,6 +67,7 @@ export function ArticleEditorForm({
           setError(err.message ?? 'Error al guardar')
         } else {
           setSaved(true); setTimeout(() => setSaved(false), 2500)
+          router.refresh()
         }
       } else {
         const res = await fetch(`${API_URL()}/articles`, {
@@ -77,40 +86,42 @@ export function ArticleEditorForm({
     } finally {
       setSaving(false)
     }
-  }, [articleId, content, metadata, router, title, worldId])
+  }, [articleId, headerFields, modules, router, title, worldId])
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="space-y-5 min-w-0">
-        <input
-          type="text"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          placeholder="Título del artículo..."
-          className="w-full text-3xl font-bold bg-transparent border-none outline-none placeholder-gray-300 text-gray-900"
-        />
-
-        <ArticleEditor worldId={worldId} initialContent={initialContent} onChange={setContent} />
-
-        <div className="flex items-center gap-4 pt-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="px-5 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {saving ? 'Guardando…' : articleId ? 'Guardar cambios' : 'Crear artículo'}
-          </button>
-          {saved && <span className="text-sm text-green-600 font-medium">Guardado</span>}
-          {error && <span className="text-sm text-red-500">{error}</span>}
-        </div>
-      </div>
-
-      <MetadataPanel
-        value={initialMetadata}
-        onChange={setMetadata}
-        className="lg:sticky lg:top-6 self-start"
+    <div className="space-y-6">
+      <input
+        type="text"
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        placeholder="Título del artículo..."
+        className="w-full text-3xl font-bold bg-transparent border-none outline-none placeholder-gray-300 text-gray-900"
       />
+
+      <HeaderFieldsEditor value={headerFields} onChange={setHeaderFields} />
+
+      <ModulesEditor
+        worldId={worldId}
+        articleId={articleId ?? null}
+        articleTitle={title}
+        value={modules}
+        onChange={setModules}
+        outgoing={initialOutgoing}
+        incoming={initialIncoming}
+      />
+
+      <div className="sticky bottom-4 flex items-center gap-4 pt-2 z-10">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="px-5 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow"
+        >
+          {saving ? 'Guardando…' : articleId ? 'Guardar cambios' : 'Crear artículo'}
+        </button>
+        {saved && <span className="text-sm text-green-600 font-medium">Guardado</span>}
+        {error && <span className="text-sm text-red-500">{error}</span>}
+      </div>
     </div>
   )
 }

@@ -1,6 +1,9 @@
-import { IsNotEmpty, IsObject, IsOptional, IsString, IsUUID, Validate } from 'class-validator'
-import type { ArticleMetadata, TipTapContent } from '../../common/types'
-import { IsArticleMetadataConstraint } from './create-article.dto'
+import { IsArray, IsNotEmpty, IsString, IsUUID, Validate } from 'class-validator'
+import type { ArticleModule, HeaderField } from '../../common/types'
+import {
+  IsArticleModulesArrayConstraint,
+  IsHeaderFieldsArrayConstraint,
+} from './create-article.dto'
 
 export class UpdateArticleDto {
   @IsUUID()
@@ -10,11 +13,11 @@ export class UpdateArticleDto {
   @IsNotEmpty()
   title!: string
 
-  @IsObject()
-  content!: TipTapContent
+  @IsArray()
+  @Validate(IsHeaderFieldsArrayConstraint)
+  headerFields!: HeaderField[]
 
-  @IsOptional()
-  @IsObject()
-  @Validate(IsArticleMetadataConstraint)
-  metadata?: ArticleMetadata
+  @IsArray()
+  @Validate(IsArticleModulesArrayConstraint)
+  modules!: ArticleModule[]
 }
