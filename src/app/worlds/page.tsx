@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/backend/db/server'
 import Link from 'next/link'
-import { createWorld } from '@/actions/worlds'
+import { createWorld } from '@/backend/actions/worlds'
 
 export default async function WorldsPage() {
   const supabase = await createClient()

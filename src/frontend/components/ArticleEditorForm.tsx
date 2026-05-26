@@ -3,8 +3,8 @@
 import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArticleEditor } from './editor/ArticleEditor'
-import { createArticle, updateArticle } from '@/actions/articles'
-import type { TipTapContent } from '@/lib/types'
+import { createArticle, updateArticle } from '@/backend/actions/articles'
+import type { TipTapContent } from '@/backend/types'
 
 interface ArticleEditorFormProps {
   worldId: string

@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Mention from '@tiptap/extension-mention'
 import { mergeAttributes } from '@tiptap/core'
 import { buildMentionSuggestion } from './mentionSuggestion'
-import type { TipTapContent } from '@/lib/types'
+import type { TipTapContent } from '@/backend/types'
 import 'tippy.js/dist/tippy.css'
 
 interface ArticleEditorProps {

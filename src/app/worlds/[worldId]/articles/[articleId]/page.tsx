@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/backend/db/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArticleEditorForm } from '@/components/ArticleEditorForm'
-import type { TipTapContent } from '@/lib/types'
+import { ArticleEditorForm } from '@/frontend/components/ArticleEditorForm'
+import type { TipTapContent } from '@/backend/types'
 
 interface Props {
   params: { worldId: string; articleId: string }

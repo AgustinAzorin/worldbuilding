@@ -3,7 +3,7 @@ import tippy, { type Instance, type Props as TippyProps } from 'tippy.js'
 import type { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion'
 import type { Editor } from '@tiptap/core'
 import MentionList, { type MentionListRef } from './MentionList'
-import type { ArticleSuggestion } from '@/lib/types'
+import type { ArticleSuggestion } from '@/backend/types'
 
 /**
  * Construye la configuración de suggestion para la extensión Mention de TipTap.

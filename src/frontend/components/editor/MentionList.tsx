@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react'
 import type { SuggestionKeyDownProps } from '@tiptap/suggestion'
-import type { ArticleSuggestion } from '@/lib/types'
+import type { ArticleSuggestion } from '@/backend/types'
 
 export interface MentionListRef {
   onKeyDown: (props: SuggestionKeyDownProps) => boolean

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArticleEditorForm } from '@/components/ArticleEditorForm'
+import { ArticleEditorForm } from '@/frontend/components/ArticleEditorForm'
 
 interface Props {
   params: { worldId: string }

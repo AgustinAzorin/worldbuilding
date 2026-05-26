@@ -1,8 +1,8 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/backend/db/server'
 import { revalidatePath } from 'next/cache'
-import type { TipTapContent, TipTapNode } from '@/lib/types'
+import type { TipTapContent, TipTapNode } from '@/backend/types'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

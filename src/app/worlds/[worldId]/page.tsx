@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/backend/db/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 

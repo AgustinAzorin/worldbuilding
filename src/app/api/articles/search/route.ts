@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/backend/db/server'
 import { NextRequest, NextResponse } from 'next/server'
-import type { ArticleSuggestion } from '@/lib/types'
+import type { ArticleSuggestion } from '@/backend/types'
 
 /**
  * GET /api/articles/search?q=<query>&worldId=<uuid>
