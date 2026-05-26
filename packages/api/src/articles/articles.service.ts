@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common'
 import { SupabaseService } from '../common/supabase/supabase.service'
-import { uniqueMentionIds, type TipTapContent } from '../common/types'
+import { uniqueMentionIds, type ArticleMetadata, type TipTapContent } from '../common/types'
 
 @Injectable()
 export class ArticlesService {
@@ -44,17 +44,24 @@ export class ArticlesService {
 
     return {
       ...article,
+      metadata: (article.metadata ?? {}) as ArticleMetadata,
       outgoing: (outResult.data ?? []).flatMap(r => r.articles ?? []),
       incoming: (inResult.data ?? []).flatMap(r => r.articles ?? []),
     }
   }
 
-  async create(worldId: string, title: string, content: TipTapContent, accessToken: string) {
+  async create(
+    worldId: string,
+    title: string,
+    content: TipTapContent,
+    metadata: ArticleMetadata,
+    accessToken: string,
+  ) {
     const client = this.supabase.forUser(accessToken)
 
     const { data, error } = await client
       .from('articles')
-      .insert({ world_id: worldId, title, content })
+      .insert({ world_id: worldId, title, content, metadata })
       .select('id')
       .single()
 
@@ -78,13 +85,14 @@ export class ArticlesService {
     worldId: string,
     title: string,
     content: TipTapContent,
-    accessToken: string
+    metadata: ArticleMetadata,
+    accessToken: string,
   ) {
     const client = this.supabase.forUser(accessToken)
 
     const { error: updateError } = await client
       .from('articles')
-      .update({ title, content })
+      .update({ title, content, metadata })
       .eq('id', articleId)
       .eq('world_id', worldId)
 

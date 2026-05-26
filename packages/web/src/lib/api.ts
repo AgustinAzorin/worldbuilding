@@ -99,16 +99,30 @@ export const api = {
       token: string,
       worldId: string,
       title: string,
-      content: import('./types').TipTapContent
-    ) => request<{ id: string }>('POST', '/articles', token, { worldId, title, content }),
+      content: import('./types').TipTapContent,
+      metadata: import('./types').ArticleMetadata,
+    ) =>
+      request<{ id: string }>('POST', '/articles', token, {
+        worldId,
+        title,
+        content,
+        metadata,
+      }),
 
     update: (
       token: string,
       id: string,
       worldId: string,
       title: string,
-      content: import('./types').TipTapContent
-    ) => request<void>('PATCH', `/articles/${id}`, token, { worldId, title, content }),
+      content: import('./types').TipTapContent,
+      metadata: import('./types').ArticleMetadata,
+    ) =>
+      request<void>('PATCH', `/articles/${id}`, token, {
+        worldId,
+        title,
+        content,
+        metadata,
+      }),
 
     search: (token: string, worldId: string, q: string) =>
       request<import('./types').ArticleSuggestion[]>(

@@ -13,6 +13,20 @@ export interface TipTapContent {
   content: TipTapNode[]
 }
 
+// ── Article metadata (custom labels) ───────────────────────────────────────
+
+/**
+ * Mapa clave/valor de labels personalizables por artículo.
+ * Persistido como columna JSONB `articles.metadata`.
+ */
+export type ArticleMetadata = Record<string, string>
+
+/** Valida que `value` sea un objeto plano con todas sus entradas string→string. */
+export function isArticleMetadata(value: unknown): value is ArticleMetadata {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  return Object.values(value as Record<string, unknown>).every(v => typeof v === 'string')
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /** Recorre el árbol JSON y extrae todos los attrs.id de nodos mention */
