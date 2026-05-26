@@ -1,0 +1,36 @@
+services:
+  # ── Backend — NestJS REST API ──────────────────────────────────────────────
+  - type: web
+    name: worldbuilding-api
+    runtime: node
+    rootDir: packages/api
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false          # pegar desde Supabase > Settings > API
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false          # pegar URL del servicio worldbuilding-web una vez deployado
+
+  # ── Frontend — Next.js ────────────────────────────────────────────────────
+  - type: web
+    name: worldbuilding-web
+    runtime: node
+    rootDir: packages/web
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_API_URL
+        sync: false          # URL pública del servicio worldbuilding-api (https://...)
+      - key: API_URL
+        sync: false          # misma URL — usada en Server Components (server-side fetch)
