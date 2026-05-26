@@ -33,4 +33,14 @@ export class WorldsController {
   listArticles(@Param('id') worldId: string, @CurrentUser() { accessToken }: UserCtx) {
     return this.worldsService.listArticles(worldId, accessToken)
   }
+
+  @Get(':id/folder-tree')
+  getFolderTree(@Param('id') worldId: string, @CurrentUser() { accessToken }: UserCtx) {
+    return this.worldsService.getFolderTree(worldId, accessToken)
+  }
+
+  @Get(':id/graph')
+  getGraphData(@Param('id') worldId: string, @CurrentUser() { accessToken }: UserCtx) {
+    return this.worldsService.getGraphData(worldId, accessToken)
+  }
 }
