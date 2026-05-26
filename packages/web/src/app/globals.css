@@ -75,3 +75,69 @@
 .mention:hover {
   background-color: #bfdbfe;   /* blue-200 */
 }
+
+/* ── Tablas TipTap ─────────────────────────────────────── */
+
+.prose-editor table.editor-table,
+.prose-editor table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0.75rem 0;
+  overflow: hidden;
+}
+
+.prose-editor table td,
+.prose-editor table th {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+  position: relative;
+  min-width: 1rem;
+}
+
+.prose-editor table th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Celda seleccionada — proporcionada por extension-table */
+.prose-editor table .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(59, 130, 246, 0.15);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.prose-editor .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background-color: #93c5fd;
+  pointer-events: none;
+}
+
+.prose-editor .tableWrapper {
+  overflow-x: auto;
+}
+
+/* ── Imágenes en el editor ─────────────────────────────── */
+
+.prose-editor img,
+.prose-editor img.editor-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.75rem 0;
+  display: block;
+}
+
+.prose-editor img.ProseMirror-selectednode {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

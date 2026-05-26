@@ -43,7 +43,13 @@ export class ArticlesController {
 
   @Post()
   create(@Body() dto: CreateArticleDto, @CurrentUser() { accessToken }: UserCtx) {
-    return this.articlesService.create(dto.worldId, dto.title, dto.content, accessToken)
+    return this.articlesService.create(
+      dto.worldId,
+      dto.title,
+      dto.content,
+      dto.metadata ?? {},
+      accessToken,
+    )
   }
 
   @Patch(':id')
@@ -53,6 +59,13 @@ export class ArticlesController {
     @Body() dto: UpdateArticleDto,
     @CurrentUser() { accessToken }: UserCtx
   ) {
-    return this.articlesService.update(id, dto.worldId, dto.title, dto.content, accessToken)
+    return this.articlesService.update(
+      id,
+      dto.worldId,
+      dto.title,
+      dto.content,
+      dto.metadata ?? {},
+      accessToken,
+    )
   }
 }

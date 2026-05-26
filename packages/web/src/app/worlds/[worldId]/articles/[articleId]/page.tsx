@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArticleEditorForm } from '@/frontend/components/ArticleEditorForm'
 import { api } from '@/lib/api'
-import type { TipTapContent } from '@/lib/types'
+import { coerceArticleMetadata, type TipTapContent } from '@/lib/types'
 
 interface Props {
   params: { worldId: string; articleId: string }
@@ -30,6 +30,7 @@ export default async function ArticlePage({ params }: Props) {
         articleId={params.articleId}
         initialTitle={article.title}
         initialContent={article.content as TipTapContent | undefined}
+        initialMetadata={coerceArticleMetadata(article.metadata)}
       />
 
       {(article.outgoing.length > 0 || article.incoming.length > 0) && (

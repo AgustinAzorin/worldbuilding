@@ -1,5 +1,6 @@
-import { IsNotEmpty, IsObject, IsString, IsUUID } from 'class-validator'
-import type { TipTapContent } from '../../common/types'
+import { IsNotEmpty, IsObject, IsOptional, IsString, IsUUID, Validate } from 'class-validator'
+import type { ArticleMetadata, TipTapContent } from '../../common/types'
+import { IsArticleMetadataConstraint } from './create-article.dto'
 
 export class UpdateArticleDto {
   @IsUUID()
@@ -11,4 +12,9 @@ export class UpdateArticleDto {
 
   @IsObject()
   content!: TipTapContent
+
+  @IsOptional()
+  @IsObject()
+  @Validate(IsArticleMetadataConstraint)
+  metadata?: ArticleMetadata
 }

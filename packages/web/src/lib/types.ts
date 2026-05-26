@@ -13,6 +13,28 @@ export interface TipTapContent {
   content: TipTapNode[]
 }
 
+// ── Article metadata (custom labels) ───────────────────────────────────────
+
+/**
+ * Mapa clave/valor de labels personalizables por artículo.
+ * Persistido como columna JSONB `articles.metadata`.
+ */
+export type ArticleMetadata = Record<string, string>
+
+export const EMPTY_METADATA: ArticleMetadata = Object.freeze({}) as ArticleMetadata
+
+/** Type-guard estricto: descarta entradas no `string -> string`. */
+export function isArticleMetadata(value: unknown): value is ArticleMetadata {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  return Object.values(value as Record<string, unknown>).every(v => typeof v === 'string')
+}
+
+/** Normaliza un valor desconocido (JSONB del backend) a `ArticleMetadata`. */
+export function coerceArticleMetadata(value: unknown): ArticleMetadata {
+  if (!isArticleMetadata(value)) return { ...EMPTY_METADATA }
+  return { ...value }
+}
+
 // ── API response shapes ────────────────────────────────────────────────────
 
 export interface World {
@@ -27,6 +49,7 @@ export interface Article {
   world_id: string
   title: string
   content: TipTapContent | null
+  metadata: ArticleMetadata
   created_at: string
   updated_at: string
 }
