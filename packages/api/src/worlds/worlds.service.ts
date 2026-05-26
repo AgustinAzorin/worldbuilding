@@ -87,7 +87,7 @@ export class WorldsService {
 
     const { data: articles, error: artErr } = await client
       .from('articles')
-      .select('id, title, folder_id')
+      .select('id, title, folder_id, type')
       .eq('world_id', worldId)
 
     if (artErr) throw new InternalServerErrorException(artErr.message)
@@ -107,11 +107,33 @@ export class WorldsService {
         id: a.id,
         title: a.title,
         folder_id: a.folder_id as string | null,
+        type: ((a.type as string) === 'event' ? 'event' : 'document') as
+          | 'document'
+          | 'event',
       })),
       links: (relations ?? []).map(r => ({
         source: r.source_article_id,
         target: r.target_article_id,
       })),
     }
+  }
+
+  /**
+   * Devuelve los artículos marcados como `type = 'event'` para un mundo,
+   * ordenados ascendentemente por `start_year`. Los eventos sin
+   * `start_year` quedan al final (NULLS LAST) para que la timeline pueda
+   * mostrarlos en una sección "sin fecha".
+   */
+  async getTimelineEvents(worldId: string, accessToken: string) {
+    const { data, error } = await this.supabase
+      .forUser(accessToken)
+      .from('articles')
+      .select('id, title, start_year, end_year, date_display, updated_at')
+      .eq('world_id', worldId)
+      .eq('type', 'event')
+      .order('start_year', { ascending: true, nullsFirst: false })
+
+    if (error) throw new InternalServerErrorException(error.message)
+    return data
   }
 }

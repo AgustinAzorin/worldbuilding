@@ -43,4 +43,12 @@ export class WorldsController {
   getGraphData(@Param('id') worldId: string, @CurrentUser() { accessToken }: UserCtx) {
     return this.worldsService.getGraphData(worldId, accessToken)
   }
+
+  @Get(':id/timeline')
+  getTimelineEvents(
+    @Param('id') worldId: string,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.worldsService.getTimelineEvents(worldId, accessToken)
+  }
 }

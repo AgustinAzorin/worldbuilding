@@ -3,8 +3,25 @@ import { SupabaseService } from '../common/supabase/supabase.service'
 import {
   mentionIdsFromModules,
   type ArticleModule,
+  type ArticleType,
   type HeaderField,
 } from '../common/types'
+
+interface EventMetadata {
+  type?: ArticleType
+  startYear?: number | null
+  endYear?: number | null
+  dateDisplay?: string | null
+}
+
+function buildEventColumns(meta: EventMetadata) {
+  const cols: Record<string, unknown> = {}
+  if (meta.type !== undefined)         cols.type         = meta.type
+  if (meta.startYear !== undefined)    cols.start_year   = meta.startYear
+  if (meta.endYear !== undefined)      cols.end_year     = meta.endYear
+  if (meta.dateDisplay !== undefined)  cols.date_display = meta.dateDisplay
+  return cols
+}
 
 @Injectable()
 export class ArticlesService {
@@ -61,12 +78,19 @@ export class ArticlesService {
     headerFields: HeaderField[],
     modules: ArticleModule[],
     accessToken: string,
+    eventMeta: EventMetadata = {},
   ) {
     const client = this.supabase.forUser(accessToken)
 
     const { data, error } = await client
       .from('articles')
-      .insert({ world_id: worldId, title, header_fields: headerFields, modules })
+      .insert({
+        world_id: worldId,
+        title,
+        header_fields: headerFields,
+        modules,
+        ...buildEventColumns(eventMeta),
+      })
       .select('id')
       .single()
 
@@ -92,12 +116,18 @@ export class ArticlesService {
     headerFields: HeaderField[],
     modules: ArticleModule[],
     accessToken: string,
+    eventMeta: EventMetadata = {},
   ) {
     const client = this.supabase.forUser(accessToken)
 
     const { error: updateError } = await client
       .from('articles')
-      .update({ title, header_fields: headerFields, modules })
+      .update({
+        title,
+        header_fields: headerFields,
+        modules,
+        ...buildEventColumns(eventMeta),
+      })
       .eq('id', articleId)
       .eq('world_id', worldId)
 

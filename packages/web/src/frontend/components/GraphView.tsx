@@ -88,10 +88,23 @@ export function GraphView({ worldId, data }: GraphViewProps) {
     [],
   )
 
+  // Colores por tipo: eventos en naranja/rojo, documentos en azul.
+  // `hoveredId` recibe un tono más saturado del mismo color.
+  const colorForNode = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (node: any): string => {
+      const isEvent = node.type === 'event'
+      const isHovered = (node.id as string) === hoveredId
+      if (isEvent) return isHovered ? '#dc2626' : '#ef4444'
+      return isHovered ? '#2563eb' : '#3b82f6'
+    },
+    [hoveredId],
+  )
+
   const nodeColor = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (node: any) => ((node.id as string) === hoveredId ? '#2563eb' : '#818cf8'),
-    [hoveredId],
+    (node: any) => colorForNode(node),
+    [colorForNode],
   )
 
   const nodeCanvasObject = useCallback(
@@ -100,13 +113,20 @@ export function GraphView({ worldId, data }: GraphViewProps) {
       const x = node.x as number
       const y = node.y as number
       const r = Math.sqrt((node.val as number) ?? 1) * 5
-      const isHovered = (node.id as string) === hoveredId
+      const isEvent = node.type === 'event'
 
       // Circle
       ctx.beginPath()
       ctx.arc(x, y, r, 0, 2 * Math.PI)
-      ctx.fillStyle = isHovered ? '#2563eb' : '#818cf8'
+      ctx.fillStyle = colorForNode(node)
       ctx.fill()
+
+      // Borde diferenciado para eventos (anillo blanco sutil)
+      if (isEvent) {
+        ctx.lineWidth = Math.max(0.5, 1 / globalScale)
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+        ctx.stroke()
+      }
 
       // Label below circle
       const label = node.title as string
@@ -121,7 +141,7 @@ export function GraphView({ worldId, data }: GraphViewProps) {
       ctx.fillStyle = 'rgba(255,255,255,0.9)'
       ctx.fillText(label, x, labelY)
     },
-    [hoveredId],
+    [hoveredId, colorForNode],
   )
 
   const nodePointerAreaPaint = useCallback(

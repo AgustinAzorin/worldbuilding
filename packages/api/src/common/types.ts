@@ -13,6 +13,16 @@ export interface TipTapContent {
   content: TipTapNode[]
 }
 
+// ── Tipo de artículo ──────────────────────────────────────────────────────
+
+export type ArticleType = 'document' | 'event'
+
+export const ARTICLE_TYPES: ReadonlyArray<ArticleType> = ['document', 'event']
+
+export function isArticleType(v: unknown): v is ArticleType {
+  return v === 'document' || v === 'event'
+}
+
 // ── Header fields (ficha técnica ordenada) ────────────────────────────────
 
 export type HeaderFieldType = 'text' | 'number'

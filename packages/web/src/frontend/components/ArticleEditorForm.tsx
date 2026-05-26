@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { HeaderFieldsEditor } from './HeaderFieldsEditor'
 import { ModulesEditor } from './ModulesEditor'
 import { createClient } from '@/lib/supabase/client'
-import type { ArticleModule, ArticleRef, HeaderField } from '@/lib/types'
+import type { ArticleModule, ArticleRef, ArticleType, HeaderField } from '@/lib/types'
 
 interface ArticleEditorFormProps {
   worldId: string
@@ -15,6 +15,10 @@ interface ArticleEditorFormProps {
   initialModules?: ArticleModule[]
   initialOutgoing?: ArticleRef[]
   initialIncoming?: ArticleRef[]
+  initialType?: ArticleType
+  initialStartYear?: number | null
+  initialEndYear?: number | null
+  initialDateDisplay?: string | null
 }
 
 async function getToken(): Promise<string> {
@@ -32,10 +36,22 @@ export function ArticleEditorForm({
   initialModules = [],
   initialOutgoing = [],
   initialIncoming = [],
+  initialType = 'document',
+  initialStartYear = null,
+  initialEndYear = null,
+  initialDateDisplay = null,
 }: ArticleEditorFormProps) {
   const [title, setTitle] = useState(initialTitle)
   const [headerFields, setHeaderFields] = useState<HeaderField[]>(initialHeaderFields)
   const [modules, setModules] = useState<ArticleModule[]>(initialModules)
+  const [articleType, setArticleType] = useState<ArticleType>(initialType)
+  const [startYear, setStartYear] = useState<string>(
+    initialStartYear !== null ? String(initialStartYear) : '',
+  )
+  const [endYear, setEndYear] = useState<string>(
+    initialEndYear !== null ? String(initialEndYear) : '',
+  )
+  const [dateDisplay, setDateDisplay] = useState<string>(initialDateDisplay ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -44,6 +60,23 @@ export function ArticleEditorForm({
   const handleSave = useCallback(async () => {
     const trimmedTitle = title.trim()
     if (!trimmedTitle) { setError('El título no puede estar vacío'); return }
+
+    // Validación de metadatos de evento.
+    const parsedStart = startYear.trim() === '' ? null : Number.parseInt(startYear, 10)
+    const parsedEnd   = endYear.trim()   === '' ? null : Number.parseInt(endYear, 10)
+    const trimmedDisplay = dateDisplay.trim()
+
+    if (articleType === 'event') {
+      if (parsedStart === null || Number.isNaN(parsedStart)) {
+        setError('Un evento requiere un año de inicio válido'); return
+      }
+      if (!trimmedDisplay) {
+        setError('Un evento requiere una etiqueta de fecha (date_display)'); return
+      }
+      if (parsedEnd !== null && (Number.isNaN(parsedEnd) || parsedEnd < parsedStart)) {
+        setError('El año de fin no es válido o es anterior al inicio'); return
+      }
+    }
 
     setSaving(true); setError(null); setSaved(false)
 
@@ -54,6 +87,10 @@ export function ArticleEditorForm({
         title: trimmedTitle,
         headerFields,
         modules,
+        type: articleType,
+        startYear: articleType === 'event' ? parsedStart : null,
+        endYear:   articleType === 'event' ? parsedEnd   : null,
+        dateDisplay: articleType === 'event' ? trimmedDisplay : null,
       }
 
       if (articleId) {
@@ -86,7 +123,18 @@ export function ArticleEditorForm({
     } finally {
       setSaving(false)
     }
-  }, [articleId, headerFields, modules, router, title, worldId])
+  }, [
+    articleId,
+    articleType,
+    dateDisplay,
+    endYear,
+    headerFields,
+    modules,
+    router,
+    startYear,
+    title,
+    worldId,
+  ])
 
   return (
     <div className="space-y-6">
@@ -97,6 +145,74 @@ export function ArticleEditorForm({
         placeholder="Título del artículo..."
         className="w-full text-3xl font-bold bg-transparent border-none outline-none placeholder-gray-300 text-gray-900"
       />
+
+      {/* ── Selector de tipo + metadatos de evento ─────────────────────── */}
+      <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 space-y-3">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="font-semibold text-gray-700">Tipo:</span>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="radio"
+              name="article-type"
+              checked={articleType === 'document'}
+              onChange={() => setArticleType('document')}
+              className="accent-blue-600"
+            />
+            <span className="text-blue-600 font-medium">Documento</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="radio"
+              name="article-type"
+              checked={articleType === 'event'}
+              onChange={() => setArticleType('event')}
+              className="accent-red-600"
+            />
+            <span className="text-red-600 font-medium">Evento histórico</span>
+          </label>
+        </div>
+
+        {articleType === 'event' && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            <label className="space-y-1">
+              <span className="text-xs font-semibold text-gray-500 uppercase">
+                Año inicio <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="number"
+                value={startYear}
+                onChange={e => setStartYear(e.target.value)}
+                placeholder="142"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-semibold text-gray-500 uppercase">
+                Año fin
+              </span>
+              <input
+                type="number"
+                value={endYear}
+                onChange={e => setEndYear(e.target.value)}
+                placeholder="opcional"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-semibold text-gray-500 uppercase">
+                Etiqueta <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="text"
+                value={dateDisplay}
+                onChange={e => setDateDisplay(e.target.value)}
+                placeholder="Año 142 de la Tercera Era"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </label>
+          </div>
+        )}
+      </div>
 
       <HeaderFieldsEditor value={headerFields} onChange={setHeaderFields} />
 

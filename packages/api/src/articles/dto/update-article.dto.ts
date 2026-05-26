@@ -1,5 +1,14 @@
-import { IsArray, IsNotEmpty, IsString, IsUUID, Validate } from 'class-validator'
-import type { ArticleModule, HeaderField } from '../../common/types'
+import {
+  IsArray,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Validate,
+} from 'class-validator'
+import type { ArticleModule, ArticleType, HeaderField } from '../../common/types'
 import {
   IsArticleModulesArrayConstraint,
   IsHeaderFieldsArrayConstraint,
@@ -20,4 +29,20 @@ export class UpdateArticleDto {
   @IsArray()
   @Validate(IsArticleModulesArrayConstraint)
   modules!: ArticleModule[]
+
+  @IsOptional()
+  @IsIn(['document', 'event'])
+  type?: ArticleType
+
+  @IsOptional()
+  @IsInt()
+  startYear?: number | null
+
+  @IsOptional()
+  @IsInt()
+  endYear?: number | null
+
+  @IsOptional()
+  @IsString()
+  dateDisplay?: string | null
 }
