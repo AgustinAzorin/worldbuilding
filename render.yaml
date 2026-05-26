@@ -4,7 +4,7 @@ services:
     name: worldbuilding-api
     runtime: node
     rootDir: packages/api
-    buildCommand: npx pnpm@9 install && npx pnpm@9 run build
+    buildCommand: pnpm install && pnpm run build
     startCommand: node dist/main
     envVars:
       - key: NODE_ENV
@@ -21,7 +21,7 @@ services:
     name: worldbuilding-web
     runtime: node
     rootDir: packages/web
-    buildCommand: npx pnpm@9 install && npx pnpm@9 run build
+    buildCommand: pnpm install && pnpm run build
     startCommand: node_modules/.bin/next start
     envVars:
       - key: NODE_ENV
