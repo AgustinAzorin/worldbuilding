@@ -1,22 +1,32 @@
 import {
+  IsArray,
   IsNotEmpty,
-  IsObject,
-  IsOptional,
   IsString,
   IsUUID,
   Validate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator'
-import { isArticleMetadata, type ArticleMetadata, type TipTapContent } from '../../common/types'
+import {
+  isArticleModulesArray,
+  isHeaderFieldsArray,
+  type ArticleModule,
+  type HeaderField,
+} from '../../common/types'
 
-@ValidatorConstraint({ name: 'IsArticleMetadata', async: false })
-export class IsArticleMetadataConstraint implements ValidatorConstraintInterface {
-  validate(value: unknown): boolean {
-    return value === undefined || isArticleMetadata(value)
-  }
+@ValidatorConstraint({ name: 'IsHeaderFieldsArray', async: false })
+export class IsHeaderFieldsArrayConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean { return isHeaderFieldsArray(value) }
   defaultMessage(): string {
-    return 'metadata must be a flat object of string → string entries'
+    return 'header_fields must be an ordered array of { id, label, value, type: text|number }'
+  }
+}
+
+@ValidatorConstraint({ name: 'IsArticleModulesArray', async: false })
+export class IsArticleModulesArrayConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean { return isArticleModulesArray(value) }
+  defaultMessage(): string {
+    return 'modules must be an ordered array of typed module objects'
   }
 }
 
@@ -28,11 +38,11 @@ export class CreateArticleDto {
   @IsNotEmpty()
   title!: string
 
-  @IsObject()
-  content!: TipTapContent
+  @IsArray()
+  @Validate(IsHeaderFieldsArrayConstraint)
+  headerFields!: HeaderField[]
 
-  @IsOptional()
-  @IsObject()
-  @Validate(IsArticleMetadataConstraint)
-  metadata?: ArticleMetadata
+  @IsArray()
+  @Validate(IsArticleModulesArrayConstraint)
+  modules!: ArticleModule[]
 }

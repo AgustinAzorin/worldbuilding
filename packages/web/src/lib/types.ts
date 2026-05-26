@@ -13,26 +13,96 @@ export interface TipTapContent {
   content: TipTapNode[]
 }
 
-// ── Article metadata (custom labels) ───────────────────────────────────────
-
-/**
- * Mapa clave/valor de labels personalizables por artículo.
- * Persistido como columna JSONB `articles.metadata`.
- */
-export type ArticleMetadata = Record<string, string>
-
-export const EMPTY_METADATA: ArticleMetadata = Object.freeze({}) as ArticleMetadata
-
-/** Type-guard estricto: descarta entradas no `string -> string`. */
-export function isArticleMetadata(value: unknown): value is ArticleMetadata {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
-  return Object.values(value as Record<string, unknown>).every(v => typeof v === 'string')
+export const EMPTY_TIPTAP_DOC: TipTapContent = {
+  type: 'doc',
+  content: [{ type: 'paragraph' }],
 }
 
-/** Normaliza un valor desconocido (JSONB del backend) a `ArticleMetadata`. */
-export function coerceArticleMetadata(value: unknown): ArticleMetadata {
-  if (!isArticleMetadata(value)) return { ...EMPTY_METADATA }
-  return { ...value }
+// ── Header fields (ficha técnica ordenada) ────────────────────────────────
+
+export type HeaderFieldType = 'text' | 'number'
+
+export interface HeaderField {
+  id: string
+  label: string
+  value: string
+  type: HeaderFieldType
+}
+
+// ── Módulos del artículo ──────────────────────────────────────────────────
+
+export type ArticleModuleType =
+  | 'rich-text'
+  | 'chart'
+  | 'relations-graph'
+  | 'table'
+  | 'image'
+
+export interface RichTextModule {
+  id: string
+  type: 'rich-text'
+  title: string
+  data: { doc: TipTapContent }
+}
+
+export interface ImageModule {
+  id: string
+  type: 'image'
+  title: string
+  data: { url: string | null; path: string | null; alt: string }
+}
+
+export interface ChartRow {
+  id: string
+  attribute: string
+  value: number
+}
+
+export interface ChartModule {
+  id: string
+  type: 'chart'
+  title: string
+  data: { kind: 'radar' | 'bar'; rows: ChartRow[] }
+}
+
+export interface RelationsGraphModule {
+  id: string
+  type: 'relations-graph'
+  title: string
+  data: Record<string, never>
+}
+
+export interface TableColumn { id: string; label: string }
+export interface TableRow    { id: string; cells: Record<string, string> }
+
+export interface TableModule {
+  id: string
+  type: 'table'
+  title: string
+  data: { columns: TableColumn[]; rows: TableRow[] }
+}
+
+export type ArticleModule =
+  | RichTextModule
+  | ImageModule
+  | ChartModule
+  | RelationsGraphModule
+  | TableModule
+
+/** Factory de módulo vacío por tipo — usado por el botón "Añadir módulo". */
+export function makeEmptyModule(type: ArticleModuleType, id: string): ArticleModule {
+  switch (type) {
+    case 'rich-text':
+      return { id, type, title: 'Texto', data: { doc: { ...EMPTY_TIPTAP_DOC } } }
+    case 'image':
+      return { id, type, title: 'Imagen', data: { url: null, path: null, alt: '' } }
+    case 'chart':
+      return { id, type, title: 'Estadísticas', data: { kind: 'radar', rows: [] } }
+    case 'relations-graph':
+      return { id, type, title: 'Relaciones', data: {} }
+    case 'table':
+      return { id, type, title: 'Tabla', data: { columns: [], rows: [] } }
+  }
 }
 
 // ── API response shapes ────────────────────────────────────────────────────
@@ -48,8 +118,8 @@ export interface Article {
   id: string
   world_id: string
   title: string
-  content: TipTapContent | null
-  metadata: ArticleMetadata
+  header_fields: HeaderField[]
+  modules: ArticleModule[]
   created_at: string
   updated_at: string
 }
@@ -79,7 +149,7 @@ export interface Folder {
   created_at: string
 }
 
-/** Article shape returned by getFolderTree (lightweight — no content) */
+/** Article shape returned by getFolderTree (lightweight — no body) */
 export interface ArticleListItem {
   id: string
   title: string

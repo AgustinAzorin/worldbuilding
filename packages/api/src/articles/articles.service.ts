@@ -1,6 +1,10 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common'
 import { SupabaseService } from '../common/supabase/supabase.service'
-import { uniqueMentionIds, type ArticleMetadata, type TipTapContent } from '../common/types'
+import {
+  mentionIdsFromModules,
+  type ArticleModule,
+  type HeaderField,
+} from '../common/types'
 
 @Injectable()
 export class ArticlesService {
@@ -44,36 +48,37 @@ export class ArticlesService {
 
     return {
       ...article,
-      metadata: (article.metadata ?? {}) as ArticleMetadata,
+      header_fields: (article.header_fields ?? []) as HeaderField[],
+      modules:       (article.modules       ?? []) as ArticleModule[],
       outgoing: (outResult.data ?? []).flatMap(r => r.articles ?? []),
-      incoming: (inResult.data ?? []).flatMap(r => r.articles ?? []),
+      incoming: (inResult.data  ?? []).flatMap(r => r.articles ?? []),
     }
   }
 
   async create(
     worldId: string,
     title: string,
-    content: TipTapContent,
-    metadata: ArticleMetadata,
+    headerFields: HeaderField[],
+    modules: ArticleModule[],
     accessToken: string,
   ) {
     const client = this.supabase.forUser(accessToken)
 
     const { data, error } = await client
       .from('articles')
-      .insert({ world_id: worldId, title, content, metadata })
+      .insert({ world_id: worldId, title, header_fields: headerFields, modules })
       .select('id')
       .single()
 
     if (error) throw new InternalServerErrorException(error.message)
 
-    const targetIds = uniqueMentionIds(content)
+    const targetIds = mentionIdsFromModules(modules)
     if (targetIds.length > 0) {
       await client.from('article_relations').insert(
         targetIds.map(targetId => ({
           source_article_id: data.id,
           target_article_id: targetId,
-        }))
+        })),
       )
     }
 
@@ -84,21 +89,21 @@ export class ArticlesService {
     articleId: string,
     worldId: string,
     title: string,
-    content: TipTapContent,
-    metadata: ArticleMetadata,
+    headerFields: HeaderField[],
+    modules: ArticleModule[],
     accessToken: string,
   ) {
     const client = this.supabase.forUser(accessToken)
 
     const { error: updateError } = await client
       .from('articles')
-      .update({ title, content, metadata })
+      .update({ title, header_fields: headerFields, modules })
       .eq('id', articleId)
       .eq('world_id', worldId)
 
     if (updateError) throw new InternalServerErrorException(updateError.message)
 
-    const targetIds = uniqueMentionIds(content, articleId)
+    const targetIds = mentionIdsFromModules(modules, articleId)
 
     const { error: rpcError } = await client.rpc('sync_article_relations', {
       p_source_id: articleId,
