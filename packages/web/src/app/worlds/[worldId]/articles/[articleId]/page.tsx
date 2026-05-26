@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArticleEditorForm } from '@/frontend/components/ArticleEditorForm'
 import { api } from '@/lib/api'
-import { coerceArticleMetadata, type TipTapContent } from '@/lib/types'
 
 interface Props {
   params: { worldId: string; articleId: string }
@@ -29,47 +28,11 @@ export default async function ArticlePage({ params }: Props) {
         worldId={params.worldId}
         articleId={params.articleId}
         initialTitle={article.title}
-        initialContent={article.content as TipTapContent | undefined}
-        initialMetadata={coerceArticleMetadata(article.metadata)}
+        initialHeaderFields={article.header_fields ?? []}
+        initialModules={article.modules ?? []}
+        initialOutgoing={article.outgoing}
+        initialIncoming={article.incoming}
       />
-
-      {(article.outgoing.length > 0 || article.incoming.length > 0) && (
-        <aside className="mt-10 pt-8 border-t border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
-            Relaciones del artículo
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-6">
-            {article.outgoing.length > 0 && (
-              <div>
-                <h3 className="text-xs font-medium text-gray-400 mb-2">Este artículo menciona</h3>
-                <ul className="space-y-1">
-                  {article.outgoing.map(ref => (
-                    <li key={ref.id}>
-                      <Link href={`/worlds/${params.worldId}/articles/${ref.id}`} className="text-sm text-blue-600 hover:underline">
-                        @{ref.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {article.incoming.length > 0 && (
-              <div>
-                <h3 className="text-xs font-medium text-gray-400 mb-2">Mencionado por</h3>
-                <ul className="space-y-1">
-                  {article.incoming.map(ref => (
-                    <li key={ref.id}>
-                      <Link href={`/worlds/${params.worldId}/articles/${ref.id}`} className="text-sm text-blue-600 hover:underline">
-                        @{ref.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </aside>
-      )}
     </main>
   )
 }

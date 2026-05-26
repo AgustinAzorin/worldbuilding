@@ -46,8 +46,8 @@ export class ArticlesController {
     return this.articlesService.create(
       dto.worldId,
       dto.title,
-      dto.content,
-      dto.metadata ?? {},
+      dto.headerFields,
+      dto.modules,
       accessToken,
     )
   }
@@ -63,8 +63,8 @@ export class ArticlesController {
       id,
       dto.worldId,
       dto.title,
-      dto.content,
-      dto.metadata ?? {},
+      dto.headerFields,
+      dto.modules,
       accessToken,
     )
   }
