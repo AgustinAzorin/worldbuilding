@@ -53,6 +53,42 @@ export const api = {
         `/worlds/${worldId}/articles`,
         token
       ),
+
+    folderTree: (token: string, worldId: string) =>
+      request<import('./types').FolderTreePayload>(
+        'GET',
+        `/worlds/${worldId}/folder-tree`,
+        token
+      ),
+
+    graph: (token: string, worldId: string) =>
+      request<import('./types').GraphData>('GET', `/worlds/${worldId}/graph`, token),
+  },
+
+  folders: {
+    create: (
+      token: string,
+      worldId: string,
+      name: string,
+      parentId?: string | null,
+    ) =>
+      request<import('./types').Folder>('POST', '/folders', token, {
+        worldId,
+        name,
+        parentId: parentId ?? null,
+      }),
+
+    update: (
+      token: string,
+      folderId: string,
+      patch: { name?: string; parentId?: string | null },
+    ) => request<import('./types').Folder>('PATCH', `/folders/${folderId}`, token, patch),
+
+    remove: (token: string, folderId: string) =>
+      request<void>('DELETE', `/folders/${folderId}`, token),
+
+    moveArticle: (token: string, articleId: string, folderId: string | null) =>
+      request<void>('PATCH', `/folders/articles/${articleId}/move`, token, { folderId }),
   },
 
   articles: {

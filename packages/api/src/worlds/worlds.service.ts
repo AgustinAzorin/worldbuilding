@@ -51,4 +51,67 @@ export class WorldsService {
     if (error) throw new InternalServerErrorException(error.message)
     return data
   }
+
+  /**
+   * Returns all folders and articles for a world as flat lists.
+   * The frontend assembles the tree from parent_id / folder_id references.
+   */
+  async getFolderTree(worldId: string, accessToken: string) {
+    const client = this.supabase.forUser(accessToken)
+
+    const [foldersRes, articlesRes] = await Promise.all([
+      client
+        .from('folders')
+        .select('id, name, world_id, parent_id, created_at')
+        .eq('world_id', worldId)
+        .order('name'),
+      client
+        .from('articles')
+        .select('id, title, folder_id, updated_at')
+        .eq('world_id', worldId)
+        .order('title'),
+    ])
+
+    if (foldersRes.error) throw new InternalServerErrorException(foldersRes.error.message)
+    if (articlesRes.error) throw new InternalServerErrorException(articlesRes.error.message)
+
+    return { folders: foldersRes.data, articles: articlesRes.data }
+  }
+
+  /**
+   * Returns graph-ready data: article nodes + directed relation links.
+   * Only includes relations where the source article belongs to this world.
+   */
+  async getGraphData(worldId: string, accessToken: string) {
+    const client = this.supabase.forUser(accessToken)
+
+    const { data: articles, error: artErr } = await client
+      .from('articles')
+      .select('id, title, folder_id')
+      .eq('world_id', worldId)
+
+    if (artErr) throw new InternalServerErrorException(artErr.message)
+    if (!articles || articles.length === 0) return { nodes: [], links: [] }
+
+    const articleIds = articles.map(a => a.id)
+
+    const { data: relations, error: relErr } = await client
+      .from('article_relations')
+      .select('source_article_id, target_article_id')
+      .in('source_article_id', articleIds)
+
+    if (relErr) throw new InternalServerErrorException(relErr.message)
+
+    return {
+      nodes: articles.map(a => ({
+        id: a.id,
+        title: a.title,
+        folder_id: a.folder_id as string | null,
+      })),
+      links: (relations ?? []).map(r => ({
+        source: r.source_article_id,
+        target: r.target_article_id,
+      })),
+    }
+  }
 }

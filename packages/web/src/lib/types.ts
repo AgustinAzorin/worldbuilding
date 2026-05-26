@@ -45,3 +45,51 @@ export interface ArticleWithRelations extends Article {
   outgoing: ArticleRef[]
   incoming: ArticleRef[]
 }
+
+// ── Folders ────────────────────────────────────────────────────────────────
+
+export interface Folder {
+  id: string
+  name: string
+  world_id: string
+  parent_id: string | null
+  created_at: string
+}
+
+/** Article shape returned by getFolderTree (lightweight — no content) */
+export interface ArticleListItem {
+  id: string
+  title: string
+  folder_id: string | null
+  updated_at: string
+}
+
+/** Recursive node used by the FolderTree component */
+export interface FolderTreeNode extends Folder {
+  children: FolderTreeNode[]
+  articles: ArticleListItem[]
+}
+
+/** Flat payload from GET /worlds/:id/folder-tree */
+export interface FolderTreePayload {
+  folders: Folder[]
+  articles: ArticleListItem[]
+}
+
+// ── Graph ──────────────────────────────────────────────────────────────────
+
+export interface GraphNode {
+  id: string
+  title: string
+  folder_id: string | null
+}
+
+export interface GraphLink {
+  source: string
+  target: string
+}
+
+export interface GraphData {
+  nodes: GraphNode[]
+  links: GraphLink[]
+}
