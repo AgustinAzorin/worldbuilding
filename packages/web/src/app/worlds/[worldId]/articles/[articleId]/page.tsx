@@ -32,6 +32,10 @@ export default async function ArticlePage({ params }: Props) {
         initialModules={article.modules ?? []}
         initialOutgoing={article.outgoing}
         initialIncoming={article.incoming}
+        initialType={article.type ?? 'document'}
+        initialStartYear={article.start_year ?? null}
+        initialEndYear={article.end_year ?? null}
+        initialDateDisplay={article.date_display ?? null}
       />
     </main>
   )

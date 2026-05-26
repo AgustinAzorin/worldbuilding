@@ -43,6 +43,14 @@ export default async function WorldPage({ params }: Props) {
               Plantillas
             </Link>
             <Link
+              href={`/worlds/${params.worldId}/timeline`}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-600 transition-colors"
+              title="Línea de tiempo"
+            >
+              <span>⏳</span>
+              <span>Timeline</span>
+            </Link>
+            <Link
               href={`/worlds/${params.worldId}/graph`}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-purple-600 transition-colors"
               title="Vista de grafo"

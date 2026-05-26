@@ -1,6 +1,9 @@
 import {
   IsArray,
+  IsIn,
+  IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUUID,
   Validate,
@@ -11,6 +14,7 @@ import {
   isArticleModulesArray,
   isHeaderFieldsArray,
   type ArticleModule,
+  type ArticleType,
   type HeaderField,
 } from '../../common/types'
 
@@ -45,4 +49,20 @@ export class CreateArticleDto {
   @IsArray()
   @Validate(IsArticleModulesArrayConstraint)
   modules!: ArticleModule[]
+
+  @IsOptional()
+  @IsIn(['document', 'event'])
+  type?: ArticleType
+
+  @IsOptional()
+  @IsInt()
+  startYear?: number | null
+
+  @IsOptional()
+  @IsInt()
+  endYear?: number | null
+
+  @IsOptional()
+  @IsString()
+  dateDisplay?: string | null
 }

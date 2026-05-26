@@ -63,6 +63,13 @@ export const api = {
 
     graph: (token: string, worldId: string) =>
       request<import('./types').GraphData>('GET', `/worlds/${worldId}/graph`, token),
+
+    timelineEvents: (token: string, worldId: string) =>
+      request<import('./types').TimelineEvent[]>(
+        'GET',
+        `/worlds/${worldId}/timeline`,
+        token,
+      ),
   },
 
   folders: {
@@ -101,12 +108,14 @@ export const api = {
       title: string,
       headerFields: import('./types').HeaderField[],
       modules: import('./types').ArticleModule[],
+      eventMeta?: import('./types').EventMetadataPatch,
     ) =>
       request<{ id: string }>('POST', '/articles', token, {
         worldId,
         title,
         headerFields,
         modules,
+        ...(eventMeta ?? {}),
       }),
 
     update: (
@@ -116,12 +125,14 @@ export const api = {
       title: string,
       headerFields: import('./types').HeaderField[],
       modules: import('./types').ArticleModule[],
+      eventMeta?: import('./types').EventMetadataPatch,
     ) =>
       request<void>('PATCH', `/articles/${id}`, token, {
         worldId,
         title,
         headerFields,
         modules,
+        ...(eventMeta ?? {}),
       }),
 
     search: (token: string, worldId: string, q: string) =>

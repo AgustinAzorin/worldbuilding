@@ -114,13 +114,37 @@ export interface World {
   created_at: string
 }
 
+export type ArticleType = 'document' | 'event'
+
 export interface Article {
   id: string
   world_id: string
   title: string
   header_fields: HeaderField[]
   modules: ArticleModule[]
+  type?: ArticleType
+  start_year?: number | null
+  end_year?: number | null
+  date_display?: string | null
   created_at: string
+  updated_at: string
+}
+
+/** Payload de metadatos de evento que viaja en create/update de artículos. */
+export interface EventMetadataPatch {
+  type?: ArticleType
+  startYear?: number | null
+  endYear?: number | null
+  dateDisplay?: string | null
+}
+
+/** Fila mínima usada por la vista de Línea de Tiempo. */
+export interface TimelineEvent {
+  id: string
+  title: string
+  start_year: number | null
+  end_year: number | null
+  date_display: string | null
   updated_at: string
 }
 
@@ -194,6 +218,7 @@ export interface GraphNode {
   id: string
   title: string
   folder_id: string | null
+  type: ArticleType
 }
 
 export interface GraphLink {

@@ -49,6 +49,12 @@ export class ArticlesController {
       dto.headerFields,
       dto.modules,
       accessToken,
+      {
+        type:        dto.type,
+        startYear:   dto.startYear,
+        endYear:     dto.endYear,
+        dateDisplay: dto.dateDisplay,
+      },
     )
   }
 
@@ -66,6 +72,12 @@ export class ArticlesController {
       dto.headerFields,
       dto.modules,
       accessToken,
+      {
+        type:        dto.type,
+        startYear:   dto.startYear,
+        endYear:     dto.endYear,
+        dateDisplay: dto.dateDisplay,
+      },
     )
   }
 }

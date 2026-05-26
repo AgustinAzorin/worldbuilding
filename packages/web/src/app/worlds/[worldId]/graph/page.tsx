@@ -36,7 +36,21 @@ export default async function GraphPage({ params }: Props) {
           ← {world.title}
         </Link>
         <h1 className="text-sm font-semibold text-white">Vista de Grafo</h1>
-        <div className="ml-auto flex items-center gap-3 text-xs text-gray-500">
+        <div className="ml-auto flex items-center gap-4 text-xs text-gray-500">
+          <Link
+            href={`/worlds/${params.worldId}/timeline`}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            Línea de tiempo →
+          </Link>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />
+            Documento
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
+            Evento
+          </span>
           <span>{graphData.nodes.length} artículos</span>
           <span>{graphData.links.length} conexiones</span>
         </div>
