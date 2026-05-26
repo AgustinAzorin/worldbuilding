@@ -34,14 +34,23 @@ export default async function WorldPage({ params }: Props) {
           >
             ← Mis mundos
           </Link>
-          <Link
-            href={`/worlds/${params.worldId}/graph`}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-purple-600 transition-colors"
-            title="Vista de grafo"
-          >
-            <span>⬡</span>
-            <span>Grafo</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/worlds/${params.worldId}/templates`}
+              className="text-xs text-gray-400 hover:text-blue-600 transition-colors"
+              title="Plantillas"
+            >
+              Plantillas
+            </Link>
+            <Link
+              href={`/worlds/${params.worldId}/graph`}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-purple-600 transition-colors"
+              title="Vista de grafo"
+            >
+              <span>⬡</span>
+              <span>Grafo</span>
+            </Link>
+          </div>
         </div>
 
         <div className="px-2 py-2 border-b border-gray-100">

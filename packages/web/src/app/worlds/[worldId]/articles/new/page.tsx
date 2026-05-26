@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArticleEditorForm } from '@/frontend/components/ArticleEditorForm'
+import { NewArticleForm } from '@/frontend/components/NewArticleForm'
 
 interface Props {
   params: { worldId: string }
@@ -7,13 +7,13 @@ interface Props {
 
 export default function NewArticlePage({ params }: Props) {
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
+    <main className="max-w-2xl mx-auto px-4 py-10">
       <div className="mb-6">
         <Link href={`/worlds/${params.worldId}`} className="text-sm text-blue-600 hover:underline">
           ← Volver al mundo
         </Link>
       </div>
-      <ArticleEditorForm worldId={params.worldId} />
+      <NewArticleForm worldId={params.worldId} />
     </main>
   )
 }

@@ -130,5 +130,63 @@ export const api = {
         `/articles/search?worldId=${encodeURIComponent(worldId)}&q=${encodeURIComponent(q)}`,
         token
       ),
+
+    /**
+     * Instancia un artículo desde una plantilla — o vacío si `templateId` es
+     * null. El backend regenera los UUIDs de campos/módulos del preset.
+     */
+    createFromTemplate: (
+      token: string,
+      worldId: string,
+      title: string,
+      templateId: string | null,
+    ) =>
+      request<{ id: string }>('POST', '/templates/instantiate', token, {
+        worldId,
+        title,
+        templateId,
+      }),
+  },
+
+  templates: {
+    list: (token: string, worldId: string) =>
+      request<import('./types').ArticleTemplateSummary[]>(
+        'GET',
+        `/templates?worldId=${encodeURIComponent(worldId)}`,
+        token,
+      ),
+
+    get: (token: string, id: string) =>
+      request<import('./types').ArticleTemplate>('GET', `/templates/${id}`, token),
+
+    create: (
+      token: string,
+      worldId: string,
+      name: string,
+      headerFields: import('./types').HeaderField[],
+      modules: import('./types').ArticleModule[],
+    ) =>
+      request<import('./types').ArticleTemplate>('POST', '/templates', token, {
+        worldId,
+        name,
+        headerFields,
+        modules,
+      }),
+
+    update: (
+      token: string,
+      id: string,
+      name: string,
+      headerFields: import('./types').HeaderField[],
+      modules: import('./types').ArticleModule[],
+    ) =>
+      request<void>('PATCH', `/templates/${id}`, token, {
+        name,
+        headerFields,
+        modules,
+      }),
+
+    remove: (token: string, id: string) =>
+      request<void>('DELETE', `/templates/${id}`, token),
   },
 }

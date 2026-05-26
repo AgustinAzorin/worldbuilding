@@ -169,6 +169,25 @@ export interface FolderTreePayload {
   articles: ArticleListItem[]
 }
 
+// ── Article templates (presets) ────────────────────────────────────────────
+
+/** Lightweight row used in lists and selectors */
+export interface ArticleTemplateSummary {
+  id: string
+  name: string
+  created_at: string
+}
+
+/** Full template with editable defaults */
+export interface ArticleTemplate {
+  id: string
+  world_id: string
+  name: string
+  default_header_fields: HeaderField[]
+  default_modules: ArticleModule[]
+  created_at: string
+}
+
 // ── Graph ──────────────────────────────────────────────────────────────────
 
 export interface GraphNode {
