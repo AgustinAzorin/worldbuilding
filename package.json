@@ -2,9 +2,13 @@
   "name": "worldbuilding",
   "private": true,
   "scripts": {
-    "dev:api": "npm run start:dev --prefix packages/api",
-    "dev:web": "npm run dev --prefix packages/web",
-    "build:api": "npm run build --prefix packages/api",
-    "build:web": "npm run build --prefix packages/web"
+    "dev:api": "pnpm --filter @worldbuilding/api run start:dev",
+    "dev:web": "pnpm --filter @worldbuilding/web run dev",
+    "build:api": "pnpm --filter @worldbuilding/api run build",
+    "build:web": "pnpm --filter @worldbuilding/web run build"
+  },
+  "engines": {
+    "pnpm": ">=9",
+    "node": ">=20"
   }
 }

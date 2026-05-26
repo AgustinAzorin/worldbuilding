@@ -4,8 +4,8 @@ services:
     name: worldbuilding-api
     runtime: node
     rootDir: packages/api
-    buildCommand: npm install && npm run build
-    startCommand: npm run start:prod
+    buildCommand: pnpm install && pnpm run build
+    startCommand: node dist/main
     envVars:
       - key: NODE_ENV
         value: production
@@ -14,15 +14,15 @@ services:
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: FRONTEND_URL
-        sync: false          # pegar URL del servicio worldbuilding-web una vez deployado
+        sync: false          # URL del servicio worldbuilding-web una vez deployado
 
   # ── Frontend — Next.js ────────────────────────────────────────────────────
   - type: web
     name: worldbuilding-web
     runtime: node
     rootDir: packages/web
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
+    buildCommand: pnpm install && pnpm run build
+    startCommand: node_modules/.bin/next start
     envVars:
       - key: NODE_ENV
         value: production
