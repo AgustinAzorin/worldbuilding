@@ -23,6 +23,14 @@ export function isArticleType(v: unknown): v is ArticleType {
   return v === 'document' || v === 'event'
 }
 
+// ── Article relations ─────────────────────────────────────────────────────
+
+export type RelationConnectionType = 'mention' | 'semantic'
+
+export function isRelationConnectionType(v: unknown): v is RelationConnectionType {
+  return v === 'mention' || v === 'semantic'
+}
+
 // ── Header fields (ficha técnica ordenada) ────────────────────────────────
 
 export type HeaderFieldType = 'text' | 'number'
@@ -42,6 +50,8 @@ export type ArticleModuleType =
   | 'relations-graph'
   | 'table'
   | 'image'
+  | 'relations-manager'
+  | 'family-tree'
 
 export interface RichTextModule {
   id: string
@@ -87,12 +97,28 @@ export interface TableModule {
   data: { columns: TableColumn[]; rows: TableRow[] }
 }
 
+export interface RelationsManagerModule {
+  id: string
+  type: 'relations-manager'
+  title: string
+  data: Record<string, never>
+}
+
+export interface FamilyTreeModule {
+  id: string
+  type: 'family-tree'
+  title: string
+  data: Record<string, never>
+}
+
 export type ArticleModule =
   | RichTextModule
   | ImageModule
   | ChartModule
   | RelationsGraphModule
   | TableModule
+  | RelationsManagerModule
+  | FamilyTreeModule
 
 // ── Type guards (validación en runtime para DTOs) ─────────────────────────
 
@@ -152,6 +178,8 @@ export function isArticleModule(v: unknown): v is ArticleModule {
         Array.isArray(data.rows) && data.rows.every(isChartRow)
       )
     case 'relations-graph':
+    case 'relations-manager':
+    case 'family-tree':
       return isObj(data) && Object.keys(data).length === 0
     case 'table':
       return (

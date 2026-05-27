@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import type { ArticleRef, RelationsGraphModule } from '@/lib/types'
+import type { ArticleRef, ArticleRelationEdge, RelationsGraphModule } from '@/lib/types'
 
 const RelationsMiniGraph = dynamic(
   () => import('./RelationsMiniGraph').then(m => m.RelationsMiniGraph),
@@ -22,8 +22,8 @@ interface Props {
   worldId: string
   articleId: string | null
   articleTitle: string
-  outgoing: ArticleRef[]
-  incoming: ArticleRef[]
+  outgoing: ArticleRelationEdge[]
+  incoming: ArticleRelationEdge[]
 }
 
 export function RelationsGraphModuleView({

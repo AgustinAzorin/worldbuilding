@@ -97,7 +97,7 @@ export class WorldsService {
 
     const { data: relations, error: relErr } = await client
       .from('article_relations')
-      .select('source_article_id, target_article_id')
+      .select('source_article_id, target_article_id, connection_type, relation_label')
       .in('source_article_id', articleIds)
 
     if (relErr) throw new InternalServerErrorException(relErr.message)
@@ -112,8 +112,13 @@ export class WorldsService {
           | 'event',
       })),
       links: (relations ?? []).map(r => ({
-        source: r.source_article_id,
-        target: r.target_article_id,
+        source: r.source_article_id as string,
+        target: r.target_article_id as string,
+        connection_type:
+          ((r.connection_type as string) === 'semantic' ? 'semantic' : 'mention') as
+            | 'semantic'
+            | 'mention',
+        relation_label: (r.relation_label as string | null) ?? null,
       })),
     }
   }

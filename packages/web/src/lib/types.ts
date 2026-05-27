@@ -37,6 +37,8 @@ export type ArticleModuleType =
   | 'relations-graph'
   | 'table'
   | 'image'
+  | 'relations-manager'
+  | 'family-tree'
 
 export interface RichTextModule {
   id: string
@@ -82,12 +84,28 @@ export interface TableModule {
   data: { columns: TableColumn[]; rows: TableRow[] }
 }
 
+export interface RelationsManagerModule {
+  id: string
+  type: 'relations-manager'
+  title: string
+  data: Record<string, never>
+}
+
+export interface FamilyTreeModule {
+  id: string
+  type: 'family-tree'
+  title: string
+  data: Record<string, never>
+}
+
 export type ArticleModule =
   | RichTextModule
   | ImageModule
   | ChartModule
   | RelationsGraphModule
   | TableModule
+  | RelationsManagerModule
+  | FamilyTreeModule
 
 /** Factory de módulo vacío por tipo — usado por el botón "Añadir módulo". */
 export function makeEmptyModule(type: ArticleModuleType, id: string): ArticleModule {
@@ -102,6 +120,10 @@ export function makeEmptyModule(type: ArticleModuleType, id: string): ArticleMod
       return { id, type, title: 'Relaciones', data: {} }
     case 'table':
       return { id, type, title: 'Tabla', data: { columns: [], rows: [] } }
+    case 'relations-manager':
+      return { id, type, title: 'Relaciones explícitas', data: {} }
+    case 'family-tree':
+      return { id, type, title: 'Árbol genealógico', data: {} }
   }
 }
 
@@ -153,14 +175,30 @@ export interface ArticleSuggestion {
   title: string
 }
 
+export type RelationConnectionType = 'mention' | 'semantic'
+
 export interface ArticleRef {
   id: string
   title: string
 }
 
+/**
+ * Arista plana — incluye el id del registro `article_relations` (para
+ * permitir borrado quirúrgico desde la UI) más los metadatos de tipo
+ * y etiqueta humana cuando la relación es semántica.
+ *
+ * Mantiene `id` / `title` del artículo del otro extremo para que los
+ * componentes que tipan a `ArticleRef` sigan funcionando sin cambios.
+ */
+export interface ArticleRelationEdge extends ArticleRef {
+  relationId: string
+  connectionType: RelationConnectionType
+  label: string | null
+}
+
 export interface ArticleWithRelations extends Article {
-  outgoing: ArticleRef[]
-  incoming: ArticleRef[]
+  outgoing: ArticleRelationEdge[]
+  incoming: ArticleRelationEdge[]
 }
 
 // ── Folders ────────────────────────────────────────────────────────────────
@@ -224,6 +262,8 @@ export interface GraphNode {
 export interface GraphLink {
   source: string
   target: string
+  connection_type: RelationConnectionType
+  relation_label: string | null
 }
 
 export interface GraphData {

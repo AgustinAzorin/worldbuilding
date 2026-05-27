@@ -5,13 +5,15 @@ import {
   makeEmptyModule,
   type ArticleModule,
   type ArticleModuleType,
-  type ArticleRef,
+  type ArticleRelationEdge,
 } from '@/lib/types'
 import { RichTextModuleView } from './modules/RichTextModuleView'
 import { ImageModuleView } from './modules/ImageModuleView'
 import { ChartModuleView } from './modules/ChartModuleView'
 import { TableModuleView } from './modules/TableModuleView'
 import { RelationsGraphModuleView } from './modules/RelationsGraphModuleView'
+import { RelationsManagerModuleView } from './modules/RelationsManagerModuleView'
+import { FamilyTreeModuleView } from './modules/FamilyTreeModuleView'
 
 interface Props {
   worldId: string
@@ -19,16 +21,18 @@ interface Props {
   articleTitle: string
   value: ArticleModule[]
   onChange: (next: ArticleModule[]) => void
-  outgoing: ArticleRef[]
-  incoming: ArticleRef[]
+  outgoing: ArticleRelationEdge[]
+  incoming: ArticleRelationEdge[]
 }
 
 const MODULE_LABELS: Record<ArticleModuleType, string> = {
-  'rich-text':       'Texto',
-  'image':           'Imagen',
-  'chart':           'Estadísticas',
-  'relations-graph': 'Relaciones',
-  'table':           'Tabla',
+  'rich-text':         'Texto',
+  'image':             'Imagen',
+  'chart':             'Estadísticas',
+  'relations-graph':   'Relaciones',
+  'table':             'Tabla',
+  'relations-manager': 'Relaciones explícitas',
+  'family-tree':       'Árbol genealógico',
 }
 
 function rid(): string {
@@ -140,6 +144,23 @@ export function ModulesEditor({
                 articleTitle={articleTitle}
                 outgoing={outgoing}
                 incoming={incoming}
+              />
+            )}
+            {mod.type === 'relations-manager' && (
+              <RelationsManagerModuleView
+                module={mod}
+                worldId={worldId}
+                articleId={articleId}
+                initialRelations={outgoing}
+              />
+            )}
+            {mod.type === 'family-tree' && (
+              <FamilyTreeModuleView
+                module={mod}
+                worldId={worldId}
+                articleId={articleId}
+                articleTitle={articleTitle}
+                relations={outgoing}
               />
             )}
           </div>
