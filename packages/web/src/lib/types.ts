@@ -95,7 +95,8 @@ export interface FamilyTreeModule {
   id: string
   type: 'family-tree'
   title: string
-  data: Record<string, never>
+  /** Referencia a un árbol genealógico del mundo. `null` = sin asignar. */
+  data: { treeId: string | null }
 }
 
 export type ArticleModule =
@@ -123,7 +124,7 @@ export function makeEmptyModule(type: ArticleModuleType, id: string): ArticleMod
     case 'relations-manager':
       return { id, type, title: 'Relaciones explícitas', data: {} }
     case 'family-tree':
-      return { id, type, title: 'Árbol genealógico', data: {} }
+      return { id, type, title: 'Árbol genealógico', data: { treeId: null } }
   }
 }
 
@@ -269,4 +270,34 @@ export interface GraphLink {
 export interface GraphData {
   nodes: GraphNode[]
   links: GraphLink[]
+}
+
+// ── Family trees ───────────────────────────────────────────────────────────
+
+export interface FamilyTreeSummary {
+  id: string
+  world_id: string
+  name: string
+  description: string | null
+  member_count: number
+  edge_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface FamilyTreeEdgeRow {
+  id: string
+  parent_id: string
+  child_id: string
+}
+
+export interface FamilyTreeDetail {
+  id: string
+  world_id: string
+  name: string
+  description: string | null
+  created_at: string
+  updated_at: string
+  members: ArticleRef[]
+  edges: FamilyTreeEdgeRow[]
 }

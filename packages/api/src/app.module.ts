@@ -4,8 +4,16 @@ import { WorldsModule } from './worlds/worlds.module'
 import { ArticlesModule } from './articles/articles.module'
 import { FoldersModule } from './folders/folders.module'
 import { TemplatesModule } from './templates/templates.module'
+import { TreesModule } from './trees/trees.module'
 
 @Module({
-  imports: [SupabaseModule, WorldsModule, ArticlesModule, FoldersModule, TemplatesModule],
+  imports: [
+    SupabaseModule,
+    WorldsModule,
+    ArticlesModule,
+    FoldersModule,
+    TemplatesModule,
+    TreesModule,
+  ],
 })
 export class AppModule {}

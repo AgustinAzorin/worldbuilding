@@ -159,8 +159,7 @@ export function ModulesEditor({
                 module={mod}
                 worldId={worldId}
                 articleId={articleId}
-                articleTitle={articleTitle}
-                relations={outgoing}
+                onChange={updateModule}
               />
             )}
           </div>

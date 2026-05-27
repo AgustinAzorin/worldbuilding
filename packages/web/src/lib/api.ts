@@ -70,6 +70,45 @@ export const api = {
         `/worlds/${worldId}/timeline`,
         token,
       ),
+
+    listTrees: (token: string, worldId: string) =>
+      request<import('./types').FamilyTreeSummary[]>(
+        'GET',
+        `/worlds/${worldId}/trees`,
+        token,
+      ),
+  },
+
+  trees: {
+    get: (token: string, treeId: string) =>
+      request<import('./types').FamilyTreeDetail>('GET', `/trees/${treeId}`, token),
+
+    create: (token: string, worldId: string, name: string, description?: string | null) =>
+      request<import('./types').FamilyTreeSummary>('POST', '/trees', token, {
+        worldId,
+        name,
+        description: description ?? null,
+      }),
+
+    update: (
+      token: string,
+      treeId: string,
+      patch: { name?: string; description?: string | null },
+    ) => request<void>('PATCH', `/trees/${treeId}`, token, patch),
+
+    remove: (token: string, treeId: string) =>
+      request<void>('DELETE', `/trees/${treeId}`, token),
+
+    addEdge: (token: string, treeId: string, parentId: string, childId: string) =>
+      request<import('./types').FamilyTreeEdgeRow>(
+        'POST',
+        `/trees/${treeId}/edges`,
+        token,
+        { parentId, childId },
+      ),
+
+    removeEdge: (token: string, edgeId: string) =>
+      request<void>('DELETE', `/trees/edges/${edgeId}`, token),
   },
 
   folders: {
