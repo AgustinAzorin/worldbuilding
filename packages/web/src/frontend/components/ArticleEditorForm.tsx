@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { HeaderFieldsEditor } from './HeaderFieldsEditor'
 import { ModulesEditor } from './ModulesEditor'
 import { createClient } from '@/lib/supabase/client'
-import type { ArticleModule, ArticleRef, ArticleType, HeaderField } from '@/lib/types'
+import type { ArticleModule, ArticleRelationEdge, ArticleType, HeaderField } from '@/lib/types'
 
 interface ArticleEditorFormProps {
   worldId: string
@@ -13,8 +13,8 @@ interface ArticleEditorFormProps {
   initialTitle?: string
   initialHeaderFields?: HeaderField[]
   initialModules?: ArticleModule[]
-  initialOutgoing?: ArticleRef[]
-  initialIncoming?: ArticleRef[]
+  initialOutgoing?: ArticleRelationEdge[]
+  initialIncoming?: ArticleRelationEdge[]
   initialType?: ArticleType
   initialStartYear?: number | null
   initialEndYear?: number | null

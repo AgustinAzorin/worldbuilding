@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -13,6 +14,7 @@ import {
 import { ArticlesService } from './articles.service'
 import { CreateArticleDto } from './dto/create-article.dto'
 import { UpdateArticleDto } from './dto/update-article.dto'
+import { CreateSemanticRelationDto } from './dto/create-semantic-relation.dto'
 import { AuthGuard } from '../common/auth/auth.guard'
 import { CurrentUser } from '../common/auth/current-user.decorator'
 
@@ -34,6 +36,39 @@ export class ArticlesController {
     @CurrentUser() { accessToken }: UserCtx
   ) {
     return this.articlesService.search(worldId, q, accessToken)
+  }
+
+  // ── Semantic relations CRUD (declared via UI) ────────────────────────────
+
+  @Get(':id/relations')
+  listSemanticRelations(
+    @Param('id') articleId: string,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.articlesService.listSemanticRelations(articleId, accessToken)
+  }
+
+  @Post(':id/relations')
+  createSemanticRelation(
+    @Param('id') articleId: string,
+    @Body() dto: CreateSemanticRelationDto,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.articlesService.createSemanticRelation(
+      articleId,
+      dto.targetId,
+      dto.label,
+      accessToken,
+    )
+  }
+
+  @Delete('relations/:relationId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteSemanticRelation(
+    @Param('relationId') relationId: string,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.articlesService.deleteSemanticRelation(relationId, accessToken)
   }
 
   @Get(':id')

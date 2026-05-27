@@ -157,6 +157,31 @@ export const api = {
         title,
         templateId,
       }),
+
+    // ── Relaciones semánticas explícitas ─────────────────────────────────
+
+    listSemanticRelations: (token: string, articleId: string) =>
+      request<import('./types').ArticleRelationEdge[]>(
+        'GET',
+        `/articles/${articleId}/relations`,
+        token,
+      ),
+
+    createSemanticRelation: (
+      token: string,
+      articleId: string,
+      targetId: string,
+      label: string,
+    ) =>
+      request<import('./types').ArticleRelationEdge>(
+        'POST',
+        `/articles/${articleId}/relations`,
+        token,
+        { targetId, label },
+      ),
+
+    deleteSemanticRelation: (token: string, relationId: string) =>
+      request<void>('DELETE', `/articles/relations/${relationId}`, token),
   },
 
   templates: {

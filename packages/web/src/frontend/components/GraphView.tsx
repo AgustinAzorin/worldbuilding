@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import type { GraphData, GraphNode } from '@/lib/types'
+import type { GraphData, GraphLink, GraphNode } from '@/lib/types'
 
 // react-force-graph-2d requires a browser canvas → no SSR.
 // We cast to `any` because `dynamic()` strips the generic ForceGraph2D props and
@@ -33,6 +33,19 @@ function computeDegrees(data: GraphData): Map<string, number> {
   return map
 }
 
+// ── Color por etiqueta semántica ─────────────────────────────────────────
+// Mapea palabras clave del label a colores llamativos sin tener que
+// definir cada etiqueta a mano.
+function colorForSemanticLabel(label: string | null): string {
+  if (!label) return '#a855f7' // violeta neutro
+  const l = label.toLowerCase()
+  if (/(rival|enem|odio)/.test(l))                              return '#ef4444' // rojo
+  if (/(alia|amig|amor|esposa|esposo|amante)/.test(l))          return '#22c55e' // verde
+  if (/(padre|madre|hijo|hija|herman|abuel|familia)/.test(l))   return '#f59e0b' // ámbar
+  if (/(líder|lider|maestr|mentor|jefe|rey|reina)/.test(l))     return '#0ea5e9' // celeste
+  return '#a855f7' // violeta — semántico genérico
+}
+
 // ── Component ─────────────────────────────────────────────────────────────
 
 interface GraphViewProps {
@@ -40,11 +53,25 @@ interface GraphViewProps {
   data: GraphData
 }
 
+interface TooltipState {
+  x: number
+  y: number
+  text: string
+}
+
 export function GraphView({ worldId, data }: GraphViewProps) {
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement>(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
+
+  // Resolver títulos rápido a partir del id para armar el texto del tooltip.
+  const titleById = useMemo(() => {
+    const m = new Map<string, string>()
+    data.nodes.forEach(n => m.set(n.id, n.title))
+    return m
+  }, [data.nodes])
 
   // Fill parent container
   useEffect(() => {
@@ -88,6 +115,38 @@ export function GraphView({ worldId, data }: GraphViewProps) {
     [],
   )
 
+  // Hover sobre un enlace: mostramos tooltip solo si es semántico.
+  const handleLinkHover = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (link: any) => {
+      if (!link || link.connection_type !== 'semantic') {
+        setTooltip(null)
+        return
+      }
+      // Tras la simulación, source/target ya son objetos { id, x, y, ... }
+      const srcId = typeof link.source === 'object' ? (link.source.id as string) : (link.source as string)
+      const tgtId = typeof link.target === 'object' ? (link.target.id as string) : (link.target as string)
+      const sx = typeof link.source === 'object' ? (link.source.x as number | undefined) : undefined
+      const sy = typeof link.source === 'object' ? (link.source.y as number | undefined) : undefined
+      const tx = typeof link.target === 'object' ? (link.target.x as number | undefined) : undefined
+      const ty = typeof link.target === 'object' ? (link.target.y as number | undefined) : undefined
+
+      const label = (link.relation_label as string | null) ?? 'relación'
+      const srcTitle = titleById.get(srcId) ?? '???'
+      const tgtTitle = titleById.get(tgtId) ?? '???'
+      const text = `${srcTitle} es [${label}] de ${tgtTitle}`
+
+      if (sx !== undefined && sy !== undefined && tx !== undefined && ty !== undefined) {
+        const midX = (sx + tx) / 2
+        const midY = (sy + ty) / 2
+        setTooltip({ x: midX, y: midY, text })
+      } else {
+        setTooltip({ x: dimensions.width / 2, y: 20, text })
+      }
+    },
+    [dimensions.width, titleById],
+  )
+
   // Colores por tipo: eventos en naranja/rojo, documentos en azul.
   // `hoveredId` recibe un tono más saturado del mismo color.
   const colorForNode = useCallback(
@@ -115,20 +174,17 @@ export function GraphView({ worldId, data }: GraphViewProps) {
       const r = Math.sqrt((node.val as number) ?? 1) * 5
       const isEvent = node.type === 'event'
 
-      // Circle
       ctx.beginPath()
       ctx.arc(x, y, r, 0, 2 * Math.PI)
       ctx.fillStyle = colorForNode(node)
       ctx.fill()
 
-      // Borde diferenciado para eventos (anillo blanco sutil)
       if (isEvent) {
         ctx.lineWidth = Math.max(0.5, 1 / globalScale)
         ctx.strokeStyle = 'rgba(255,255,255,0.85)'
         ctx.stroke()
       }
 
-      // Label below circle
       const label = node.title as string
       const fontSize = Math.max(6, 12 / globalScale)
       ctx.font = `${fontSize}px Sans-Serif`
@@ -141,7 +197,7 @@ export function GraphView({ worldId, data }: GraphViewProps) {
       ctx.fillStyle = 'rgba(255,255,255,0.9)'
       ctx.fillText(label, x, labelY)
     },
-    [hoveredId, colorForNode],
+    [colorForNode],
   )
 
   const nodePointerAreaPaint = useCallback(
@@ -152,6 +208,100 @@ export function GraphView({ worldId, data }: GraphViewProps) {
       ctx.beginPath()
       ctx.arc(node.x as number, node.y as number, r, 0, 2 * Math.PI)
       ctx.fill()
+    },
+    [],
+  )
+
+  // Línea sólida y gruesa para semántico, fina y punteada para mention.
+  // Usamos linkCanvasObject para poder aplicar dash y color por etiqueta.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const linkColor = useCallback((link: any): string => {
+    const l = link as GraphLink
+    if (l.connection_type === 'semantic') return colorForSemanticLabel(l.relation_label)
+    return 'rgba(148,163,184,0.55)'
+  }, [])
+
+  const linkCanvasObject = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      const l = link as GraphLink
+      const s = link.source
+      const t = link.target
+      if (typeof s !== 'object' || typeof t !== 'object') return
+      const sx = s.x as number | undefined
+      const sy = s.y as number | undefined
+      const tx = t.x as number | undefined
+      const ty = t.y as number | undefined
+      if (sx === undefined || sy === undefined || tx === undefined || ty === undefined) return
+
+      ctx.save()
+      const isSemantic = l.connection_type === 'semantic'
+      const color = isSemantic
+        ? colorForSemanticLabel(l.relation_label)
+        : 'rgba(148,163,184,0.55)'
+
+      if (isSemantic) {
+        ctx.setLineDash([])
+        ctx.strokeStyle = color
+        ctx.lineWidth = Math.max(1.2, 2.2 / globalScale)
+      } else {
+        ctx.setLineDash([4 / globalScale, 3 / globalScale])
+        ctx.strokeStyle = color
+        ctx.lineWidth = Math.max(0.4, 0.8 / globalScale)
+      }
+      ctx.beginPath()
+      ctx.moveTo(sx, sy)
+      ctx.lineTo(tx, ty)
+      ctx.stroke()
+
+      // Punta de flecha sólo para semánticas — comunican dirección de rol.
+      if (isSemantic) {
+        const dx = tx - sx
+        const dy = ty - sy
+        const len = Math.hypot(dx, dy) || 1
+        // Detener la flecha justo antes del nodo destino (~ radio típico).
+        const backoff = 8
+        const hx = tx - (dx / len) * backoff
+        const hy = ty - (dy / len) * backoff
+        const ah = Math.max(4, 6 / globalScale) // alto
+        const aw = Math.max(3, 4 / globalScale) // ancho
+        const nx = -dy / len
+        const ny = dx / len
+        ctx.setLineDash([])
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.moveTo(hx, hy)
+        ctx.lineTo(hx - (dx / len) * ah + nx * aw, hy - (dy / len) * ah + ny * aw)
+        ctx.lineTo(hx - (dx / len) * ah - nx * aw, hy - (dy / len) * ah - ny * aw)
+        ctx.closePath()
+        ctx.fill()
+      }
+      ctx.restore()
+    },
+    [],
+  )
+
+  // Área de hit ancha para que el hover sobre el link sea fácil de disparar.
+  const linkPointerAreaPaint = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (link: any, color: string, ctx: CanvasRenderingContext2D) => {
+      const s = link.source
+      const t = link.target
+      if (typeof s !== 'object' || typeof t !== 'object') return
+      const sx = s.x as number | undefined
+      const sy = s.y as number | undefined
+      const tx = t.x as number | undefined
+      const ty = t.y as number | undefined
+      if (sx === undefined || sy === undefined || tx === undefined || ty === undefined) return
+      ctx.save()
+      ctx.setLineDash([])
+      ctx.strokeStyle = color
+      ctx.lineWidth = 8
+      ctx.beginPath()
+      ctx.moveTo(sx, sy)
+      ctx.lineTo(tx, ty)
+      ctx.stroke()
+      ctx.restore()
     },
     [],
   )
@@ -170,7 +320,7 @@ export function GraphView({ worldId, data }: GraphViewProps) {
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full bg-gray-950">
+    <div ref={containerRef} className="relative w-full h-full bg-gray-950">
       <ForceGraph2D
         graphData={graphData}
         width={dimensions.width}
@@ -184,14 +334,39 @@ export function GraphView({ worldId, data }: GraphViewProps) {
         nodePointerAreaPaint={nodePointerAreaPaint}
         onNodeClick={handleNodeClick}
         onNodeHover={handleNodeHover}
-        linkColor={() => 'rgba(148,163,184,0.45)'}
-        linkWidth={1.2}
-        linkDirectionalArrowLength={5}
-        linkDirectionalArrowRelPos={1}
-        linkDirectionalArrowColor={() => 'rgba(148,163,184,0.8)'}
+        onLinkHover={handleLinkHover}
+        linkColor={linkColor}
+        linkCanvasObject={linkCanvasObject}
+        linkCanvasObjectMode={() => 'replace'}
+        linkPointerAreaPaint={linkPointerAreaPaint}
         backgroundColor="#030712"
         cooldownTicks={120}
       />
+
+      {/* Tooltip flotante para aristas semánticas */}
+      {tooltip && (
+        <div
+          className="pointer-events-none absolute z-10 px-2 py-1 rounded-md bg-gray-900/95 text-white text-xs shadow-lg border border-gray-700 -translate-x-1/2 -translate-y-full max-w-[260px] whitespace-normal"
+          style={{ left: tooltip.x, top: Math.max(tooltip.y - 6, 18) }}
+        >
+          {tooltip.text}
+        </div>
+      )}
+
+      {/* Leyenda compacta */}
+      <div className="absolute bottom-3 left-3 z-10 text-xs text-gray-300 bg-gray-900/70 rounded-md px-3 py-2 border border-gray-800 space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-6 border-t-2 border-dashed border-slate-400" />
+          <span>Menciones (auto)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-block w-6 border-t-[3px] border-solid"
+            style={{ borderColor: '#a855f7' }}
+          />
+          <span>Relaciones explícitas</span>
+        </div>
+      </div>
     </div>
   )
 }
