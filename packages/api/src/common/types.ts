@@ -108,7 +108,8 @@ export interface FamilyTreeModule {
   id: string
   type: 'family-tree'
   title: string
-  data: Record<string, never>
+  /** Referencia a un árbol genealógico del mundo. `null` = sin asignar. */
+  data: { treeId: string | null }
 }
 
 export type ArticleModule =
@@ -179,8 +180,12 @@ export function isArticleModule(v: unknown): v is ArticleModule {
       )
     case 'relations-graph':
     case 'relations-manager':
-    case 'family-tree':
       return isObj(data) && Object.keys(data).length === 0
+    case 'family-tree':
+      // Aceptamos `data: {}` (módulos pre-migración) y `{ treeId: string|null }`.
+      if (!isObj(data)) return false
+      if (!('treeId' in data)) return Object.keys(data).length === 0
+      return data.treeId === null || isStr(data.treeId)
     case 'table':
       return (
         isObj(data) &&

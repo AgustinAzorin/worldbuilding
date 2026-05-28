@@ -51,4 +51,12 @@ export class WorldsController {
   ) {
     return this.worldsService.getTimelineEvents(worldId, accessToken)
   }
+
+  @Get(':id/trees')
+  listTrees(
+    @Param('id') worldId: string,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.worldsService.listTrees(worldId, accessToken)
+  }
 }

@@ -1,151 +1,140 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import type { ArticleRelationEdge, FamilyTreeModule } from '@/lib/types'
+import { api } from '@/lib/api'
+import { createClient } from '@/lib/supabase/client'
+import { FamilyTreeRenderer } from '../FamilyTreeRenderer'
+import type {
+  FamilyTreeDetail,
+  FamilyTreeModule,
+  FamilyTreeSummary,
+} from '@/lib/types'
+
+async function getToken(): Promise<string> {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
 
 interface Props {
   module: FamilyTreeModule
   worldId: string
   articleId: string | null
-  articleTitle: string
-  relations: ArticleRelationEdge[]
-}
-
-// Etiquetas que cuentan como ancestros / descendientes (case-insensitive,
-// match por substring para tolerar variantes como "Padre adoptivo").
-const ANCESTOR_PATTERN   = /(padre|madre)/i
-const DESCENDANT_PATTERN = /(hijo|hija)/i
-
-interface FamilyMember {
-  relationId: string
-  articleId: string
-  title: string
-  label: string
-}
-
-/**
- * De-duplica miembros por articleId: si el usuario declaró "Padre" y
- * "Padre adoptivo" hacia el mismo artículo, mostramos sólo el primero
- * y prevenimos cualquier riesgo de loop de keys en el render.
- */
-function uniqueByArticle(rows: FamilyMember[]): FamilyMember[] {
-  const seen = new Set<string>()
-  const out: FamilyMember[] = []
-  for (const r of rows) {
-    if (seen.has(r.articleId)) continue
-    seen.add(r.articleId)
-    out.push(r)
-  }
-  return out
-}
-
-function MemberBox({
-  worldId,
-  member,
-}: {
-  worldId: string
-  member: FamilyMember
-}) {
-  return (
-    <Link
-      href={`/worlds/${worldId}/articles/${member.articleId}`}
-      className="block min-w-[120px] max-w-[180px] rounded-md border border-gray-300 bg-white hover:border-blue-500 hover:shadow transition-all px-3 py-2 text-center"
-    >
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-        {member.label}
-      </div>
-      <div className="text-sm font-medium text-gray-900 truncate">
-        {member.title}
-      </div>
-    </Link>
-  )
-}
-
-function SelfBox({ title }: { title: string }) {
-  return (
-    <div className="min-w-[140px] max-w-[200px] rounded-md border-2 border-blue-600 bg-blue-50 px-3 py-2 text-center shadow-sm">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-        Este artículo
-      </div>
-      <div className="text-sm font-bold text-blue-900 truncate">{title}</div>
-    </div>
-  )
+  onChange: (next: FamilyTreeModule) => void
 }
 
 export function FamilyTreeModuleView({
+  module,
   worldId,
   articleId,
-  articleTitle,
-  relations,
+  onChange,
 }: Props) {
-  const { ancestors, descendants } = useMemo(() => {
-    // Sólo consideramos relaciones semánticas salientes del artículo.
-    // El label describe al destino desde el punto de vista del artículo
-    // actual: "Padre" → ese destino es padre de este artículo.
-    const semantic = relations.filter(r => r.connectionType === 'semantic' && r.label)
+  // Compat: módulos pre-migración pueden venir con `data: {}`.
+  const treeId = (module.data && 'treeId' in module.data) ? module.data.treeId : null
 
-    const a: FamilyMember[] = []
-    const d: FamilyMember[] = []
-    for (const r of semantic) {
-      const lbl = r.label as string
-      if (ANCESTOR_PATTERN.test(lbl)) {
-        a.push({ relationId: r.relationId, articleId: r.id, title: r.title, label: lbl })
-      } else if (DESCENDANT_PATTERN.test(lbl)) {
-        d.push({ relationId: r.relationId, articleId: r.id, title: r.title, label: lbl })
+  const [trees, setTrees] = useState<FamilyTreeSummary[] | null>(null)
+  const [tree, setTree] = useState<FamilyTreeDetail | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Cargar lista de árboles del mundo para el selector.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const token = await getToken()
+        const list = await api.worlds.listTrees(token, worldId)
+        if (!cancelled) setTrees(list)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Error al cargar árboles')
       }
-    }
-    return { ancestors: uniqueByArticle(a), descendants: uniqueByArticle(d) }
-  }, [relations])
+    })()
+    return () => { cancelled = true }
+  }, [worldId])
 
-  if (!articleId) {
-    return (
-      <p className="text-xs text-gray-400 italic">
-        Guardá el artículo para construir su árbol genealógico.
-      </p>
-    )
-  }
+  // Cargar el árbol referenciado.
+  useEffect(() => {
+    if (!treeId) { setTree(null); return }
+    let cancelled = false
+    setLoading(true); setError(null)
+    ;(async () => {
+      try {
+        const token = await getToken()
+        const detail = await api.trees.get(token, treeId)
+        if (!cancelled) setTree(detail)
+      } catch (e) {
+        if (!cancelled) {
+          setTree(null)
+          setError(e instanceof Error ? e.message : 'Error al cargar el árbol')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [treeId])
 
-  if (ancestors.length === 0 && descendants.length === 0) {
-    return (
-      <p className="text-xs text-gray-400 italic">
-        Sin parentescos declarados. Añadí relaciones explícitas con etiquetas
-        como <code className="bg-gray-100 px-1 rounded">Padre</code>,{' '}
-        <code className="bg-gray-100 px-1 rounded">Madre</code>,{' '}
-        <code className="bg-gray-100 px-1 rounded">Hijo</code> o{' '}
-        <code className="bg-gray-100 px-1 rounded">Hija</code> desde el módulo
-        de Relaciones explícitas.
-      </p>
-    )
-  }
+  const handleSelect = useCallback((id: string | null) => {
+    onChange({ ...module, data: { treeId: id } })
+  }, [module, onChange])
 
   return (
-    <div className="flex flex-col items-center gap-3 py-2">
-      {/* ── Ancestros ──────────────────────────────────────────────── */}
-      {ancestors.length > 0 && (
-        <>
-          <div className="flex flex-wrap justify-center gap-3">
-            {ancestors.map(m => (
-              <MemberBox key={m.relationId} worldId={worldId} member={m} />
-            ))}
-          </div>
-          <div className="w-px h-6 bg-gray-300" aria-hidden />
-        </>
-      )}
+    <div className="space-y-3">
+      {/* ── Selector ──────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs font-semibold text-gray-500 uppercase">
+          Árbol referenciado:
+        </label>
+        <select
+          value={treeId ?? ''}
+          onChange={e => handleSelect(e.target.value || null)}
+          className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">— Sin asignar —</option>
+          {(trees ?? []).map(t => (
+            <option key={t.id} value={t.id}>
+              {t.name} ({t.member_count})
+            </option>
+          ))}
+        </select>
+        <Link
+          href={`/worlds/${worldId}/trees`}
+          className="text-xs text-blue-600 hover:underline"
+        >
+          Gestionar árboles →
+        </Link>
+        {treeId && (
+          <Link
+            href={`/worlds/${worldId}/trees/${treeId}`}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            Editar este árbol →
+          </Link>
+        )}
+      </div>
 
-      {/* ── Self ───────────────────────────────────────────────────── */}
-      <SelfBox title={articleTitle || 'Este artículo'} />
+      {error && <p className="text-xs text-red-600">{error}</p>}
 
-      {/* ── Descendientes ──────────────────────────────────────────── */}
-      {descendants.length > 0 && (
-        <>
-          <div className="w-px h-6 bg-gray-300" aria-hidden />
-          <div className="flex flex-wrap justify-center gap-3">
-            {descendants.map(m => (
-              <MemberBox key={m.relationId} worldId={worldId} member={m} />
-            ))}
-          </div>
-        </>
+      {/* ── Render ────────────────────────────────────────────────────── */}
+      {!treeId ? (
+        <p className="text-xs text-gray-400 italic">
+          Elegí un árbol del mundo o creá uno nuevo desde{' '}
+          <Link
+            href={`/worlds/${worldId}/trees`}
+            className="text-blue-600 hover:underline"
+          >
+            la lista de árboles
+          </Link>.
+        </p>
+      ) : loading || !tree ? (
+        <p className="text-xs text-gray-400 italic">Cargando árbol…</p>
+      ) : (
+        <FamilyTreeRenderer
+          worldId={worldId}
+          members={tree.members}
+          edges={tree.edges}
+          focusArticleId={articleId}
+        />
       )}
     </div>
   )

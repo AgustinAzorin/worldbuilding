@@ -95,12 +95,39 @@ export class WorldsService {
 
     const articleIds = articles.map(a => a.id)
 
-    const { data: relations, error: relErr } = await client
-      .from('article_relations')
-      .select('source_article_id, target_article_id, connection_type, relation_label')
-      .in('source_article_id', articleIds)
+    const [relRes, treeEdgesRes] = await Promise.all([
+      client
+        .from('article_relations')
+        .select('source_article_id, target_article_id, connection_type, relation_label')
+        .in('source_article_id', articleIds),
+      // Aristas de árboles genealógicos del mundo: las metemos al grafo
+      // como links semánticos sintéticos parent → child con label
+      // "Parentesco" para que la visualización siga reflejándolas.
+      client
+        .from('family_tree_edges')
+        .select('parent_article_id, child_article_id, tree:family_trees!inner(world_id)')
+        .eq('tree.world_id', worldId),
+    ])
 
-    if (relErr) throw new InternalServerErrorException(relErr.message)
+    if (relRes.error)       throw new InternalServerErrorException(relRes.error.message)
+    if (treeEdgesRes.error) throw new InternalServerErrorException(treeEdgesRes.error.message)
+
+    const relLinks = (relRes.data ?? []).map(r => ({
+      source: r.source_article_id as string,
+      target: r.target_article_id as string,
+      connection_type:
+        ((r.connection_type as string) === 'semantic' ? 'semantic' : 'mention') as
+          | 'semantic'
+          | 'mention',
+      relation_label: (r.relation_label as string | null) ?? null,
+    }))
+
+    const treeLinks = (treeEdgesRes.data ?? []).map(e => ({
+      source: e.parent_article_id as string,
+      target: e.child_article_id  as string,
+      connection_type: 'semantic' as const,
+      relation_label: 'Parentesco',
+    }))
 
     return {
       nodes: articles.map(a => ({
@@ -111,16 +138,50 @@ export class WorldsService {
           | 'document'
           | 'event',
       })),
-      links: (relations ?? []).map(r => ({
-        source: r.source_article_id as string,
-        target: r.target_article_id as string,
-        connection_type:
-          ((r.connection_type as string) === 'semantic' ? 'semantic' : 'mention') as
-            | 'semantic'
-            | 'mention',
-        relation_label: (r.relation_label as string | null) ?? null,
-      })),
+      links: [...relLinks, ...treeLinks],
     }
+  }
+
+  async listTrees(worldId: string, accessToken: string) {
+    const client = this.supabase.forUser(accessToken)
+
+    const { data: trees, error } = await client
+      .from('family_trees')
+      .select('id, world_id, name, description, created_at, updated_at')
+      .eq('world_id', worldId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw new InternalServerErrorException(error.message)
+    if (!trees || trees.length === 0) return []
+
+    const treeIds = trees.map(t => t.id as string)
+    const { data: edges, error: edgesErr } = await client
+      .from('family_tree_edges')
+      .select('tree_id, parent_article_id, child_article_id')
+      .in('tree_id', treeIds)
+    if (edgesErr) throw new InternalServerErrorException(edgesErr.message)
+
+    const memberSet = new Map<string, Set<string>>()
+    const edgeCount = new Map<string, number>()
+    for (const e of edges ?? []) {
+      const tid = e.tree_id as string
+      edgeCount.set(tid, (edgeCount.get(tid) ?? 0) + 1)
+      let s = memberSet.get(tid)
+      if (!s) { s = new Set(); memberSet.set(tid, s) }
+      s.add(e.parent_article_id as string)
+      s.add(e.child_article_id as string)
+    }
+
+    return trees.map(t => ({
+      id: t.id as string,
+      world_id: t.world_id as string,
+      name: t.name as string,
+      description: (t.description as string | null) ?? null,
+      member_count: memberSet.get(t.id as string)?.size ?? 0,
+      edge_count:   edgeCount.get(t.id as string) ?? 0,
+      created_at: t.created_at as string,
+      updated_at: t.updated_at as string,
+    }))
   }
 
   /**
