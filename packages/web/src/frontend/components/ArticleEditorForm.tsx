@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { HeaderFieldsEditor } from './HeaderFieldsEditor'
 import { ModulesEditor } from './ModulesEditor'
+import { OrganizationMembersHierarchy } from './OrganizationMembersHierarchy'
 import { createClient } from '@/lib/supabase/client'
 import type { ArticleModule, ArticleRelationEdge, ArticleType, HeaderField } from '@/lib/types'
 
@@ -235,6 +236,12 @@ export function ArticleEditorForm({
         outgoing={initialOutgoing}
         incoming={initialIncoming}
       />
+
+      {articleType === 'organization' && articleId && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <OrganizationMembersHierarchy worldId={worldId} orgId={articleId} />
+        </div>
+      )}
 
       <div className="sticky bottom-4 flex items-center gap-4 pt-2 z-10">
         <button

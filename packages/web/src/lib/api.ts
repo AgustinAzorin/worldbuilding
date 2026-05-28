@@ -147,6 +147,29 @@ export const api = {
 
     reorder: (token: string, ids: string[]) =>
       request<void>('POST', '/organizations/reorder', token, { ids }),
+
+    members: (token: string, orgId: string) =>
+      request<import('./types').OrganizationMember[]>(
+        'GET',
+        `/organizations/${orgId}/members`,
+        token,
+      ),
+
+    updateMembership: (
+      token: string,
+      relationId: string,
+      patch: {
+        rank?: string | null
+        rankLevel?: number
+        reportsToMemberId?: string | null
+      },
+    ) =>
+      request<void>(
+        'PATCH',
+        `/organizations/memberships/${relationId}`,
+        token,
+        patch,
+      ),
   },
 
   folders: {

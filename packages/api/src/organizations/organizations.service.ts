@@ -14,6 +14,32 @@ interface OrgRow {
   org_parent_id: string | null
 }
 
+const MEMBERSHIP_LABEL = 'Miembro de'
+
+/** Una membresía con sus metadatos de jerarquía interna. */
+export interface OrganizationMember {
+  relationId: string
+  memberId: string
+  memberTitle: string
+  rank: string | null
+  rankLevel: number
+  reportsToMemberId: string | null
+}
+
+interface MembershipPatch {
+  rank?: string | null
+  rankLevel?: number
+  reportsToMemberId?: string | null
+}
+
+interface MembershipRow {
+  id: string
+  member_rank: string | null
+  member_rank_level: number | null
+  reports_to_member_id: string | null
+  source: { id: string; title: string } | { id: string; title: string }[] | null
+}
+
 @Injectable()
 export class OrganizationsService {
   constructor(private readonly supabase: SupabaseService) {}
@@ -90,7 +116,154 @@ export class OrganizationsService {
     }
   }
 
+  /**
+   * Lista los miembros de una organización con su jerarquía interna:
+   * cargo (`rank`), nivel (`rankLevel`) y a quién reportan
+   * (`reportsToMemberId`). Son las aristas semánticas 'Miembro de' que
+   * apuntan a la organización; el `source` de cada arista es el miembro.
+   * Se ordena por nivel ascendente (menor = más alto) y luego por título.
+   */
+  async listMembers(orgId: string, accessToken: string): Promise<OrganizationMember[]> {
+    const client = this.supabase.forUser(accessToken)
+    await this.requireOrg(client, orgId)
+
+    const { data, error } = await client
+      .from('article_relations')
+      .select(
+        'id, member_rank, member_rank_level, reports_to_member_id, ' +
+          'source:articles!article_relations_source_article_id_fkey(id, title)',
+      )
+      .eq('target_article_id', orgId)
+      .eq('connection_type', 'semantic')
+      .eq('relation_label', MEMBERSHIP_LABEL)
+
+    if (error) throw new InternalServerErrorException(error.message)
+
+    return ((data ?? []) as unknown as MembershipRow[])
+      .map(r => {
+        const source = Array.isArray(r.source) ? r.source[0] : r.source
+        if (!source) return null
+        return {
+          relationId: r.id,
+          memberId: source.id,
+          memberTitle: source.title,
+          rank: r.member_rank,
+          rankLevel: r.member_rank_level ?? 0,
+          reportsToMemberId: r.reports_to_member_id,
+        }
+      })
+      .filter((m): m is OrganizationMember => m !== null)
+      .sort(
+        (a, b) =>
+          a.rankLevel - b.rankLevel || a.memberTitle.localeCompare(b.memberTitle),
+      )
+  }
+
+  /**
+   * Actualiza la jerarquía interna de una membresía: cargo, nivel y/o
+   * superior. Valida que la arista sea una membresía 'Miembro de' y, si se
+   * fija un superior, que sea otro miembro de la misma organización y que
+   * el movimiento no genere un ciclo en la cadena de mando.
+   */
+  async updateMembership(
+    relationId: string,
+    patch: MembershipPatch,
+    accessToken: string,
+  ): Promise<void> {
+    const client = this.supabase.forUser(accessToken)
+
+    const { data: rel, error: relErr } = await client
+      .from('article_relations')
+      .select('id, source_article_id, target_article_id, connection_type, relation_label')
+      .eq('id', relationId)
+      .single()
+    if (relErr || !rel) throw new NotFoundException('membership not found')
+    if (rel.connection_type !== 'semantic' || rel.relation_label !== MEMBERSHIP_LABEL) {
+      throw new BadRequestException('relation is not a membership')
+    }
+
+    const update: Record<string, unknown> = {}
+
+    if (patch.rank !== undefined) {
+      const trimmed = patch.rank?.trim() ?? ''
+      update.member_rank = trimmed === '' ? null : trimmed
+    }
+    if (patch.rankLevel !== undefined) {
+      update.member_rank_level = patch.rankLevel
+    }
+    if (patch.reportsToMemberId !== undefined) {
+      const superiorId = patch.reportsToMemberId
+      if (superiorId) {
+        if (superiorId === rel.source_article_id) {
+          throw new BadRequestException('a member cannot report to itself')
+        }
+        await this.assertValidSuperior(
+          client,
+          rel.target_article_id,
+          rel.source_article_id,
+          superiorId,
+        )
+      }
+      update.reports_to_member_id = superiorId
+    }
+
+    if (Object.keys(update).length === 0) return
+
+    const { error } = await client
+      .from('article_relations')
+      .update(update)
+      .eq('id', relationId)
+    if (error) throw new InternalServerErrorException(error.message)
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /**
+   * Confirma que `superiorId` es un miembro de la organización y que
+   * hacer que `memberId` le reporte no cierra un ciclo en la cadena de
+   * mando. Carga el mapa miembro→superior de toda la organización (un
+   * round-trip) y camina hacia arriba desde el superior propuesto.
+   */
+  private async assertValidSuperior(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    client: any,
+    orgId: string,
+    memberId: string,
+    superiorId: string,
+  ): Promise<void> {
+    const { data, error } = await client
+      .from('article_relations')
+      .select('source_article_id, reports_to_member_id')
+      .eq('target_article_id', orgId)
+      .eq('connection_type', 'semantic')
+      .eq('relation_label', MEMBERSHIP_LABEL)
+    if (error) throw new InternalServerErrorException(error.message)
+
+    const reportsTo = new Map<string, string | null>()
+    for (const r of (data ?? []) as {
+      source_article_id: string
+      reports_to_member_id: string | null
+    }[]) {
+      reportsTo.set(r.source_article_id, r.reports_to_member_id)
+    }
+
+    if (!reportsTo.has(superiorId)) {
+      throw new BadRequestException('superior must be a member of the same organization')
+    }
+
+    // Subimos desde el superior siguiendo reports_to; si llegamos al propio
+    // miembro, fijarlo como superior cerraría un ciclo.
+    let cursor: string | null | undefined = superiorId
+    const seen = new Set<string>()
+    while (cursor) {
+      if (cursor === memberId) {
+        throw new BadRequestException('that change would create a cycle in the chain of command')
+      }
+      if (seen.has(cursor)) break
+      seen.add(cursor)
+      cursor = reportsTo.get(cursor) ?? null
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async requireOrg(client: any, id: string): Promise<OrgRow> {

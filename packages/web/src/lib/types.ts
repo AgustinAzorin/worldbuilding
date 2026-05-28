@@ -303,6 +303,20 @@ export interface OrganizationSummary {
   members_count: number
 }
 
+/**
+ * Un miembro de una organización con su jerarquía interna: cargo
+ * (`rank`), nivel (`rankLevel`, menor = más alto) y superior al que
+ * reporta (`reportsToMemberId`, null = cima del organigrama).
+ */
+export interface OrganizationMember {
+  relationId: string
+  memberId: string
+  memberTitle: string
+  rank: string | null
+  rankLevel: number
+  reportsToMemberId: string | null
+}
+
 // ── Graph ──────────────────────────────────────────────────────────────────
 
 export interface GraphNode {
