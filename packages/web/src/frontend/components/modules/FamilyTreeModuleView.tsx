@@ -133,6 +133,7 @@ export function FamilyTreeModuleView({
           worldId={worldId}
           members={tree.members}
           edges={tree.edges}
+          partnerships={tree.partnerships}
           focusArticleId={articleId}
         />
       )}

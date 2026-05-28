@@ -5,6 +5,7 @@ import { ArticlesModule } from './articles/articles.module'
 import { FoldersModule } from './folders/folders.module'
 import { TemplatesModule } from './templates/templates.module'
 import { TreesModule } from './trees/trees.module'
+import { OrganizationsModule } from './organizations/organizations.module'
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TreesModule } from './trees/trees.module'
     FoldersModule,
     TemplatesModule,
     TreesModule,
+    OrganizationsModule,
   ],
 })
 export class AppModule {}
