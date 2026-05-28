@@ -14,6 +14,7 @@ import { TreesService } from './trees.service'
 import { CreateTreeDto } from './dto/create-tree.dto'
 import { UpdateTreeDto } from './dto/update-tree.dto'
 import { CreateTreeEdgeDto } from './dto/create-tree-edge.dto'
+import { CreateTreePartnershipDto } from './dto/create-tree-partnership.dto'
 import { AuthGuard } from '../common/auth/auth.guard'
 import { CurrentUser } from '../common/auth/current-user.decorator'
 
@@ -39,6 +40,15 @@ export class TreesController {
     @CurrentUser() { accessToken }: UserCtx,
   ) {
     return this.trees.removeEdge(edgeId, accessToken)
+  }
+
+  @Delete('partnerships/:partnershipId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removePartnership(
+    @Param('partnershipId') partnershipId: string,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.trees.removePartnership(partnershipId, accessToken)
   }
 
   @Get(':id')
@@ -68,6 +78,21 @@ export class TreesController {
     @Body() dto: CreateTreeEdgeDto,
     @CurrentUser() { accessToken }: UserCtx,
   ) {
-    return this.trees.addEdge(treeId, dto.parentId, dto.childId, accessToken)
+    return this.trees.addEdge(treeId, dto.parentId, dto.childId, dto.relationType, accessToken)
+  }
+
+  @Post(':id/partnerships')
+  addPartnership(
+    @Param('id') treeId: string,
+    @Body() dto: CreateTreePartnershipDto,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.trees.addPartnership(
+      treeId,
+      dto.memberAId,
+      dto.memberBId,
+      dto.relationType,
+      accessToken,
+    )
   }
 }

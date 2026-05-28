@@ -1,4 +1,4 @@
-import { IsUUID } from 'class-validator'
+import { IsIn, IsOptional, IsUUID } from 'class-validator'
 
 export class CreateTreeEdgeDto {
   @IsUUID()
@@ -6,4 +6,8 @@ export class CreateTreeEdgeDto {
 
   @IsUUID()
   childId!: string
+
+  @IsOptional()
+  @IsIn(['biological', 'adopted', 'bastard'])
+  relationType?: 'biological' | 'adopted' | 'bastard'
 }

@@ -106,16 +106,47 @@ export const api = {
     remove: (token: string, treeId: string) =>
       request<void>('DELETE', `/trees/${treeId}`, token),
 
-    addEdge: (token: string, treeId: string, parentId: string, childId: string) =>
+    addEdge: (
+      token: string,
+      treeId: string,
+      parentId: string,
+      childId: string,
+      relationType?: import('./types').ParentRelationType,
+    ) =>
       request<import('./types').FamilyTreeEdgeRow>(
         'POST',
         `/trees/${treeId}/edges`,
         token,
-        { parentId, childId },
+        { parentId, childId, relationType },
       ),
 
     removeEdge: (token: string, edgeId: string) =>
       request<void>('DELETE', `/trees/edges/${edgeId}`, token),
+
+    addPartnership: (
+      token: string,
+      treeId: string,
+      memberAId: string,
+      memberBId: string,
+      relationType?: import('./types').PartnerRelationType,
+    ) =>
+      request<import('./types').FamilyTreePartnerRow>(
+        'POST',
+        `/trees/${treeId}/partnerships`,
+        token,
+        { memberAId, memberBId, relationType },
+      ),
+
+    removePartnership: (token: string, partnershipId: string) =>
+      request<void>('DELETE', `/trees/partnerships/${partnershipId}`, token),
+  },
+
+  organizations: {
+    setParent: (token: string, orgId: string, parentId: string | null) =>
+      request<void>('PATCH', `/organizations/${orgId}/parent`, token, { parentId }),
+
+    reorder: (token: string, ids: string[]) =>
+      request<void>('POST', '/organizations/reorder', token, { ids }),
   },
 
   folders: {

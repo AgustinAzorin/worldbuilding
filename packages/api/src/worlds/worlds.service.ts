@@ -95,7 +95,7 @@ export class WorldsService {
 
     const articleIds = articles.map(a => a.id)
 
-    const [relRes, treeEdgesRes] = await Promise.all([
+    const [relRes, treeEdgesRes, partnershipsRes] = await Promise.all([
       client
         .from('article_relations')
         .select(
@@ -109,10 +109,16 @@ export class WorldsService {
         .from('family_tree_edges')
         .select('parent_article_id, child_article_id, tree:family_trees!inner(world_id)')
         .eq('tree.world_id', worldId),
+      // Parejas / cónyuges: links simétricos etiquetados "Pareja".
+      client
+        .from('family_tree_partnerships')
+        .select('member_a_id, member_b_id, tree:family_trees!inner(world_id)')
+        .eq('tree.world_id', worldId),
     ])
 
-    if (relRes.error)       throw new InternalServerErrorException(relRes.error.message)
-    if (treeEdgesRes.error) throw new InternalServerErrorException(treeEdgesRes.error.message)
+    if (relRes.error)         throw new InternalServerErrorException(relRes.error.message)
+    if (treeEdgesRes.error)   throw new InternalServerErrorException(treeEdgesRes.error.message)
+    if (partnershipsRes.error) throw new InternalServerErrorException(partnershipsRes.error.message)
 
     const relLinks = (relRes.data ?? []).map(r => ({
       source: r.source_article_id as string,
@@ -133,6 +139,14 @@ export class WorldsService {
       diplomacy_score: null,
     }))
 
+    const partnerLinks = (partnershipsRes.data ?? []).map(p => ({
+      source: p.member_a_id as string,
+      target: p.member_b_id as string,
+      connection_type: 'semantic' as const,
+      relation_label: 'Pareja',
+      diplomacy_score: null,
+    }))
+
     return {
       nodes: articles.map(a => {
         const raw = a.type as string
@@ -147,7 +161,7 @@ export class WorldsService {
           type: t,
         }
       }),
-      links: [...relLinks, ...treeLinks],
+      links: [...relLinks, ...treeLinks, ...partnerLinks],
     }
   }
 
@@ -164,21 +178,37 @@ export class WorldsService {
     if (!trees || trees.length === 0) return []
 
     const treeIds = trees.map(t => t.id as string)
-    const { data: edges, error: edgesErr } = await client
-      .from('family_tree_edges')
-      .select('tree_id, parent_article_id, child_article_id')
-      .in('tree_id', treeIds)
-    if (edgesErr) throw new InternalServerErrorException(edgesErr.message)
+    const [edgesRes, partsRes] = await Promise.all([
+      client
+        .from('family_tree_edges')
+        .select('tree_id, parent_article_id, child_article_id')
+        .in('tree_id', treeIds),
+      client
+        .from('family_tree_partnerships')
+        .select('tree_id, member_a_id, member_b_id')
+        .in('tree_id', treeIds),
+    ])
+    if (edgesRes.error) throw new InternalServerErrorException(edgesRes.error.message)
+    if (partsRes.error) throw new InternalServerErrorException(partsRes.error.message)
 
     const memberSet = new Map<string, Set<string>>()
     const edgeCount = new Map<string, number>()
-    for (const e of edges ?? []) {
-      const tid = e.tree_id as string
-      edgeCount.set(tid, (edgeCount.get(tid) ?? 0) + 1)
+    const ensure = (tid: string) => {
       let s = memberSet.get(tid)
       if (!s) { s = new Set(); memberSet.set(tid, s) }
+      return s
+    }
+    for (const e of edgesRes.data ?? []) {
+      const tid = e.tree_id as string
+      edgeCount.set(tid, (edgeCount.get(tid) ?? 0) + 1)
+      const s = ensure(tid)
       s.add(e.parent_article_id as string)
       s.add(e.child_article_id as string)
+    }
+    for (const p of partsRes.data ?? []) {
+      const s = ensure(p.tree_id as string)
+      s.add(p.member_a_id as string)
+      s.add(p.member_b_id as string)
     }
 
     return trees.map(t => ({
@@ -206,9 +236,10 @@ export class WorldsService {
 
     const { data: orgs, error: orgErr } = await client
       .from('articles')
-      .select('id, title, updated_at, created_at')
+      .select('id, title, updated_at, created_at, org_parent_id, org_sort_order')
       .eq('world_id', worldId)
       .eq('type', 'organization')
+      .order('org_sort_order', { ascending: true })
       .order('title', { ascending: true })
 
     if (orgErr) throw new InternalServerErrorException(orgErr.message)
@@ -235,6 +266,8 @@ export class WorldsService {
       title: o.title as string,
       created_at: o.created_at as string,
       updated_at: o.updated_at as string,
+      parent_id: (o.org_parent_id as string | null) ?? null,
+      sort_order: (o.org_sort_order as number | null) ?? 0,
       members_count: counts.get(o.id as string) ?? 0,
     }))
   }

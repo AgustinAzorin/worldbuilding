@@ -23,10 +23,24 @@ export interface TreeMember {
   title: string
 }
 
+export type ParentRelationType = 'biological' | 'adopted' | 'bastard'
+export type PartnerRelationType = 'spouse' | 'partner' | 'betrothed'
+
+const PARENT_RELATION_TYPES: ParentRelationType[] = ['biological', 'adopted', 'bastard']
+const PARTNER_RELATION_TYPES: PartnerRelationType[] = ['spouse', 'partner', 'betrothed']
+
 export interface TreeEdge {
   id: string
   parent_id: string
   child_id: string
+  relation_type: ParentRelationType
+}
+
+export interface TreePartnership {
+  id: string
+  member_a_id: string
+  member_b_id: string
+  relation_type: PartnerRelationType
 }
 
 export interface TreeDetail {
@@ -38,12 +52,21 @@ export interface TreeDetail {
   updated_at: string
   members: TreeMember[]
   edges: TreeEdge[]
+  partnerships: TreePartnership[]
 }
 
 interface EdgeRow {
   id: string
   parent_article_id: string
   child_article_id: string
+  relation_type: ParentRelationType
+}
+
+interface PartnershipRow {
+  id: string
+  member_a_id: string
+  member_b_id: string
+  relation_type: PartnerRelationType
 }
 
 @Injectable()
@@ -64,22 +87,39 @@ export class TreesService {
     if (!trees || trees.length === 0) return []
 
     const treeIds = trees.map(t => t.id as string)
-    const { data: edges, error: edgesErr } = await client
-      .from('family_tree_edges')
-      .select('tree_id, parent_article_id, child_article_id')
-      .in('tree_id', treeIds)
+    const [edgesRes, partsRes] = await Promise.all([
+      client
+        .from('family_tree_edges')
+        .select('tree_id, parent_article_id, child_article_id')
+        .in('tree_id', treeIds),
+      client
+        .from('family_tree_partnerships')
+        .select('tree_id, member_a_id, member_b_id')
+        .in('tree_id', treeIds),
+    ])
 
-    if (edgesErr) throw new InternalServerErrorException(edgesErr.message)
+    if (edgesRes.error) throw new InternalServerErrorException(edgesRes.error.message)
+    if (partsRes.error) throw new InternalServerErrorException(partsRes.error.message)
 
     const memberSet = new Map<string, Set<string>>()
     const edgeCount = new Map<string, number>()
-    for (const e of edges ?? []) {
-      const tid = e.tree_id as string
-      edgeCount.set(tid, (edgeCount.get(tid) ?? 0) + 1)
+    const ensure = (tid: string) => {
       let s = memberSet.get(tid)
       if (!s) { s = new Set(); memberSet.set(tid, s) }
+      return s
+    }
+    for (const e of edgesRes.data ?? []) {
+      const tid = e.tree_id as string
+      edgeCount.set(tid, (edgeCount.get(tid) ?? 0) + 1)
+      const s = ensure(tid)
       s.add(e.parent_article_id as string)
       s.add(e.child_article_id as string)
+    }
+    for (const p of partsRes.data ?? []) {
+      const tid = p.tree_id as string
+      const s = ensure(tid)
+      s.add(p.member_a_id as string)
+      s.add(p.member_b_id as string)
     }
 
     return trees.map(t => ({
@@ -105,19 +145,32 @@ export class TreesService {
 
     if (error) throw new NotFoundException('Tree not found')
 
-    const { data: edges, error: edgesErr } = await client
-      .from('family_tree_edges')
-      .select('id, parent_article_id, child_article_id')
-      .eq('tree_id', treeId)
-      .order('created_at', { ascending: true })
+    const [edgesRes, partsRes] = await Promise.all([
+      client
+        .from('family_tree_edges')
+        .select('id, parent_article_id, child_article_id, relation_type')
+        .eq('tree_id', treeId)
+        .order('created_at', { ascending: true }),
+      client
+        .from('family_tree_partnerships')
+        .select('id, member_a_id, member_b_id, relation_type')
+        .eq('tree_id', treeId)
+        .order('created_at', { ascending: true }),
+    ])
 
-    if (edgesErr) throw new InternalServerErrorException(edgesErr.message)
+    if (edgesRes.error) throw new InternalServerErrorException(edgesRes.error.message)
+    if (partsRes.error) throw new InternalServerErrorException(partsRes.error.message)
 
-    const edgeRows = (edges ?? []) as EdgeRow[]
+    const edgeRows = (edgesRes.data ?? []) as EdgeRow[]
+    const partRows = (partsRes.data ?? []) as PartnershipRow[]
     const memberIds = new Set<string>()
     for (const e of edgeRows) {
       memberIds.add(e.parent_article_id)
       memberIds.add(e.child_article_id)
+    }
+    for (const p of partRows) {
+      memberIds.add(p.member_a_id)
+      memberIds.add(p.member_b_id)
     }
 
     let members: TreeMember[] = []
@@ -142,6 +195,13 @@ export class TreesService {
         id: e.id,
         parent_id: e.parent_article_id,
         child_id:  e.child_article_id,
+        relation_type: e.relation_type,
+      })),
+      partnerships: partRows.map(p => ({
+        id: p.id,
+        member_a_id: p.member_a_id,
+        member_b_id: p.member_b_id,
+        relation_type: p.relation_type,
       })),
     }
   }
@@ -204,34 +264,24 @@ export class TreesService {
     treeId: string,
     parentId: string,
     childId: string,
+    relationType: ParentRelationType | undefined,
     accessToken: string,
   ): Promise<TreeEdge> {
     if (parentId === childId) {
       throw new BadRequestException('parent and child must differ')
     }
 
+    const type: ParentRelationType =
+      relationType && PARENT_RELATION_TYPES.includes(relationType)
+        ? relationType
+        : 'biological'
+
     const client = this.supabase.forUser(accessToken)
 
     // Verificamos que tree + ambos artículos vivan en el mismo mundo
     // (RLS bloquea acceso ajeno, así que basta con poder leerlos).
-    const { data: tree, error: treeErr } = await client
-      .from('family_trees')
-      .select('id, world_id')
-      .eq('id', treeId)
-      .single()
-    if (treeErr) throw new NotFoundException('Tree not found')
-
-    const { data: arts, error: artsErr } = await client
-      .from('articles')
-      .select('id, world_id')
-      .in('id', [parentId, childId])
-    if (artsErr) throw new InternalServerErrorException(artsErr.message)
-    if (!arts || arts.length !== 2) {
-      throw new NotFoundException('parent or child article not found')
-    }
-    if (arts.some(a => a.world_id !== tree.world_id)) {
-      throw new ForbiddenException('articles must belong to the same world as the tree')
-    }
+    const tree = await this.requireTreeWorld(client, treeId)
+    await this.requireSameWorldArticles(client, tree.world_id, [parentId, childId])
 
     // Validación contra ciclos: el nuevo padre no puede ser descendiente
     // del nuevo hijo dentro de este árbol.
@@ -245,8 +295,9 @@ export class TreesService {
         tree_id: treeId,
         parent_article_id: parentId,
         child_article_id:  childId,
+        relation_type: type,
       })
-      .select('id, parent_article_id, child_article_id')
+      .select('id, parent_article_id, child_article_id, relation_type')
       .single()
 
     if (insErr) {
@@ -260,6 +311,7 @@ export class TreesService {
       id: inserted.id as string,
       parent_id: inserted.parent_article_id as string,
       child_id:  inserted.child_article_id as string,
+      relation_type: inserted.relation_type as ParentRelationType,
     }
   }
 
@@ -274,6 +326,100 @@ export class TreesService {
     if (error) throw new InternalServerErrorException(error.message)
     if (!data || data.length === 0) {
       throw new NotFoundException('edge not found')
+    }
+  }
+
+  // ── Partnerships (pareja / cónyuge) ───────────────────────────────────────
+
+  async addPartnership(
+    treeId: string,
+    memberAId: string,
+    memberBId: string,
+    relationType: PartnerRelationType | undefined,
+    accessToken: string,
+  ): Promise<TreePartnership> {
+    if (memberAId === memberBId) {
+      throw new BadRequestException('a partnership needs two distinct members')
+    }
+
+    const type: PartnerRelationType =
+      relationType && PARTNER_RELATION_TYPES.includes(relationType)
+        ? relationType
+        : 'partner'
+
+    const client = this.supabase.forUser(accessToken)
+    const tree = await this.requireTreeWorld(client, treeId)
+    await this.requireSameWorldArticles(client, tree.world_id, [memberAId, memberBId])
+
+    const { data: inserted, error: insErr } = await client
+      .from('family_tree_partnerships')
+      .insert({
+        tree_id: treeId,
+        member_a_id: memberAId,
+        member_b_id: memberBId,
+        relation_type: type,
+      })
+      .select('id, member_a_id, member_b_id, relation_type')
+      .single()
+
+    if (insErr) {
+      if (insErr.code === '23505') {
+        throw new BadRequestException('partnership already exists')
+      }
+      throw new InternalServerErrorException(insErr.message)
+    }
+
+    return {
+      id: inserted.id as string,
+      member_a_id: inserted.member_a_id as string,
+      member_b_id: inserted.member_b_id as string,
+      relation_type: inserted.relation_type as PartnerRelationType,
+    }
+  }
+
+  async removePartnership(partnershipId: string, accessToken: string): Promise<void> {
+    const client = this.supabase.forUser(accessToken)
+    const { data, error } = await client
+      .from('family_tree_partnerships')
+      .delete()
+      .eq('id', partnershipId)
+      .select('id')
+
+    if (error) throw new InternalServerErrorException(error.message)
+    if (!data || data.length === 0) {
+      throw new NotFoundException('partnership not found')
+    }
+  }
+
+  // ── Helpers compartidos ───────────────────────────────────────────────────
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async requireTreeWorld(client: any, treeId: string): Promise<{ id: string; world_id: string }> {
+    const { data: tree, error } = await client
+      .from('family_trees')
+      .select('id, world_id')
+      .eq('id', treeId)
+      .single()
+    if (error) throw new NotFoundException('Tree not found')
+    return tree as { id: string; world_id: string }
+  }
+
+  private async requireSameWorldArticles(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    client: any,
+    worldId: string,
+    ids: string[],
+  ): Promise<void> {
+    const { data: arts, error } = await client
+      .from('articles')
+      .select('id, world_id')
+      .in('id', ids)
+    if (error) throw new InternalServerErrorException(error.message)
+    if (!arts || arts.length !== ids.length) {
+      throw new NotFoundException('one or more articles not found')
+    }
+    if (arts.some((a: { world_id: string }) => a.world_id !== worldId)) {
+      throw new ForbiddenException('articles must belong to the same world as the tree')
     }
   }
 

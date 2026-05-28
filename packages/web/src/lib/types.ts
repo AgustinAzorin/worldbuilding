@@ -295,6 +295,10 @@ export interface OrganizationSummary {
   title: string
   created_at: string
   updated_at: string
+  /** Facción madre dentro de la jerarquía (NULL = raíz). */
+  parent_id: string | null
+  /** Orden manual entre facciones hermanas. */
+  sort_order: number
   /** Conteo de aristas semánticas "Miembro de" apuntando a esta organización. */
   members_count: number
 }
@@ -335,10 +339,24 @@ export interface FamilyTreeSummary {
   updated_at: string
 }
 
+/** Naturaleza del vínculo padre→hijo. */
+export type ParentRelationType = 'biological' | 'adopted' | 'bastard'
+
+/** Naturaleza del vínculo de pareja. */
+export type PartnerRelationType = 'spouse' | 'partner' | 'betrothed'
+
 export interface FamilyTreeEdgeRow {
   id: string
   parent_id: string
   child_id: string
+  relation_type: ParentRelationType
+}
+
+export interface FamilyTreePartnerRow {
+  id: string
+  member_a_id: string
+  member_b_id: string
+  relation_type: PartnerRelationType
 }
 
 export interface FamilyTreeDetail {
@@ -350,4 +368,5 @@ export interface FamilyTreeDetail {
   updated_at: string
   members: ArticleRef[]
   edges: FamilyTreeEdgeRow[]
+  partnerships: FamilyTreePartnerRow[]
 }

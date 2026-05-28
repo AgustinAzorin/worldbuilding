@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
-import Link from 'next/link'
 import { api } from '@/lib/api'
 import { NewOrganizationForm } from '@frontend/components/NewOrganizationForm'
+import { OrganizationsHierarchy } from '@frontend/components/OrganizationsHierarchy'
 import { WorldNav } from '@frontend/components/WorldNav'
 
 interface Props {
@@ -52,51 +52,16 @@ export default async function OrganizationsPage({ params }: Props) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {organizations.map(org => (
-              <Link
-                key={org.id}
-                href={`/worlds/${params.worldId}/articles/${org.id}`}
-                className="group flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 hover:border-indigo-300 hover:shadow-md transition-all"
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    aria-hidden
-                    className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-lg font-bold shadow-sm"
-                  >
-                    {org.title.trim().charAt(0).toUpperCase() || '?'}
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors truncate">
-                      {org.title}
-                    </h3>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      Actualizada el{' '}
-                      {new Date(org.updated_at).toLocaleDateString('es-AR')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between">
-                  <span
-                    className={
-                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ' +
-                      (org.members_count > 0
-                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                        : 'bg-gray-100 text-gray-500 border border-gray-200')
-                    }
-                  >
-                    <span aria-hidden>👥</span>
-                    {org.members_count}{' '}
-                    {org.members_count === 1 ? 'miembro' : 'miembros'}
-                  </span>
-                  <span className="text-gray-300 group-hover:text-indigo-400 text-xl">
-                    →
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <>
+            <p className="text-xs text-gray-400 mb-4">
+              Arrastrá el orden con ↑ ↓ entre facciones hermanas y elegí una
+              <em> facción madre</em> para anidarlas como sub-facciones.
+            </p>
+            <OrganizationsHierarchy
+              worldId={params.worldId}
+              organizations={organizations}
+            />
+          </>
         )}
       </section>
     </main>
