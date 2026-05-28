@@ -30,7 +30,7 @@ export default async function TreeEditorPage({ params }: Props) {
             href={`/worlds/${params.worldId}/trees`}
             className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
           >
-            ← Árboles
+            ← Árbol
           </Link>
           <span className="text-xs text-gray-400">en {world.title}</span>
         </div>
