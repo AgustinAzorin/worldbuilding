@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -11,6 +12,7 @@ import {
 import { OrganizationsService } from './organizations.service'
 import { SetParentDto } from './dto/set-parent.dto'
 import { ReorderDto } from './dto/reorder.dto'
+import { UpdateMembershipDto } from './dto/update-membership.dto'
 import { AuthGuard } from '../common/auth/auth.guard'
 import { CurrentUser } from '../common/auth/current-user.decorator'
 
@@ -38,5 +40,30 @@ export class OrganizationsController {
     @CurrentUser() { accessToken }: UserCtx,
   ) {
     return this.organizations.setParent(id, dto.parentId ?? null, accessToken)
+  }
+
+  /** Roster de la organización con su jerarquía interna de miembros. */
+  @Get(':id/members')
+  listMembers(@Param('id') id: string, @CurrentUser() { accessToken }: UserCtx) {
+    return this.organizations.listMembers(id, accessToken)
+  }
+
+  /** Edita cargo, nivel y/o superior de una membresía. */
+  @Patch('memberships/:relationId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  updateMembership(
+    @Param('relationId') relationId: string,
+    @Body() dto: UpdateMembershipDto,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.organizations.updateMembership(
+      relationId,
+      {
+        rank: dto.rank,
+        rankLevel: dto.rankLevel,
+        reportsToMemberId: dto.reportsToMemberId,
+      },
+      accessToken,
+    )
   }
 }
