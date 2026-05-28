@@ -77,6 +77,13 @@ export const api = {
         `/worlds/${worldId}/trees`,
         token,
       ),
+
+    listOrganizations: (token: string, worldId: string) =>
+      request<import('./types').OrganizationSummary[]>(
+        'GET',
+        `/worlds/${worldId}/organizations`,
+        token,
+      ),
   },
 
   trees: {
@@ -174,12 +181,20 @@ export const api = {
         ...(eventMeta ?? {}),
       }),
 
-    search: (token: string, worldId: string, q: string) =>
-      request<import('./types').ArticleSuggestion[]>(
+    search: (
+      token: string,
+      worldId: string,
+      q: string,
+      type?: import('./types').ArticleType,
+    ) => {
+      const params = new URLSearchParams({ worldId, q })
+      if (type) params.set('type', type)
+      return request<import('./types').ArticleSuggestion[]>(
         'GET',
-        `/articles/search?worldId=${encodeURIComponent(worldId)}&q=${encodeURIComponent(q)}`,
-        token
-      ),
+        `/articles/search?${params.toString()}`,
+        token,
+      )
+    },
 
     /**
      * Instancia un artículo desde una plantilla — o vacío si `templateId` es

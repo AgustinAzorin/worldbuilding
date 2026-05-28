@@ -134,14 +134,19 @@ export class WorldsService {
     }))
 
     return {
-      nodes: articles.map(a => ({
-        id: a.id,
-        title: a.title,
-        folder_id: a.folder_id as string | null,
-        type: ((a.type as string) === 'event' ? 'event' : 'document') as
-          | 'document'
-          | 'event',
-      })),
+      nodes: articles.map(a => {
+        const raw = a.type as string
+        const t: 'document' | 'event' | 'organization' =
+          raw === 'event'        ? 'event' :
+          raw === 'organization' ? 'organization' :
+                                   'document'
+        return {
+          id: a.id,
+          title: a.title,
+          folder_id: a.folder_id as string | null,
+          type: t,
+        }
+      }),
       links: [...relLinks, ...treeLinks],
     }
   }
@@ -185,6 +190,52 @@ export class WorldsService {
       edge_count:   edgeCount.get(t.id as string) ?? 0,
       created_at: t.created_at as string,
       updated_at: t.updated_at as string,
+    }))
+  }
+
+  /**
+   * Devuelve todas las organizaciones (artículos con type='organization')
+   * del mundo, ordenadas alfabéticamente, con el conteo de miembros
+   * (aristas semánticas con relation_label='Miembro de' apuntando a la
+   * organización). El conteo se resuelve en un único round-trip y se
+   * agrupa en memoria — más simple que un RPC dedicado y suficiente para
+   * la escala del panel macro.
+   */
+  async listOrganizations(worldId: string, accessToken: string) {
+    const client = this.supabase.forUser(accessToken)
+
+    const { data: orgs, error: orgErr } = await client
+      .from('articles')
+      .select('id, title, updated_at, created_at')
+      .eq('world_id', worldId)
+      .eq('type', 'organization')
+      .order('title', { ascending: true })
+
+    if (orgErr) throw new InternalServerErrorException(orgErr.message)
+    if (!orgs || orgs.length === 0) return []
+
+    const orgIds = orgs.map(o => o.id as string)
+    const { data: rels, error: relErr } = await client
+      .from('article_relations')
+      .select('target_article_id')
+      .in('target_article_id', orgIds)
+      .eq('connection_type', 'semantic')
+      .eq('relation_label', 'Miembro de')
+
+    if (relErr) throw new InternalServerErrorException(relErr.message)
+
+    const counts = new Map<string, number>()
+    for (const r of rels ?? []) {
+      const tid = r.target_article_id as string
+      counts.set(tid, (counts.get(tid) ?? 0) + 1)
+    }
+
+    return orgs.map(o => ({
+      id: o.id as string,
+      title: o.title as string,
+      created_at: o.created_at as string,
+      updated_at: o.updated_at as string,
+      members_count: counts.get(o.id as string) ?? 0,
     }))
   }
 

@@ -170,6 +170,16 @@ export function ArticleEditorForm({
             />
             <span className="text-red-600 font-medium">Evento histórico</span>
           </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="radio"
+              name="article-type"
+              checked={articleType === 'organization'}
+              onChange={() => setArticleType('organization')}
+              className="accent-indigo-600"
+            />
+            <span className="text-indigo-600 font-medium">Organización</span>
+          </label>
         </div>
 
         {articleType === 'event' && (

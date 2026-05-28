@@ -41,6 +41,8 @@ export type ArticleModuleType =
   | 'image'
   | 'relations-manager'
   | 'family-tree'
+  | 'organization-membership'
+  | 'lifeline'
 
 interface ArticleModuleBase {
   id: string
@@ -94,6 +96,35 @@ export interface FamilyTreeModule extends ArticleModuleBase {
   data: { treeId: string | null }
 }
 
+/**
+ * Membresías a organizaciones del mundo.
+ *
+ * El módulo NO persiste estado propio: las membresías viven en
+ * `article_relations` (connection_type='semantic',
+ * relation_label='Miembro de'). El componente sólo expone la UI para
+ * crearlas/borrarlas desde el editor del artículo "miembro".
+ */
+export interface OrganizationMembershipModule extends ArticleModuleBase {
+  type: 'organization-membership'
+  data: Record<string, never>
+}
+
+/** Hito de la línea de vida interna (biografía / cronología institucional). */
+export interface LifelineMilestone {
+  id: string
+  /** Año numérico — sólo se usa para ordenar ascendentemente. */
+  year: number
+  /** Etiqueta humana de la fecha (ej: "Año 45 de la Segunda Era"). */
+  date_display: string
+  title: string
+  description: string
+}
+
+export interface LifelineModule extends ArticleModuleBase {
+  type: 'lifeline'
+  data: { milestones: LifelineMilestone[] }
+}
+
 export type ArticleModule =
   | RichTextModule
   | ImageModule
@@ -102,6 +133,8 @@ export type ArticleModule =
   | TableModule
   | RelationsManagerModule
   | FamilyTreeModule
+  | OrganizationMembershipModule
+  | LifelineModule
 
 /** Factory de módulo vacío por tipo — usado por el botón "Añadir módulo". */
 export function makeEmptyModule(type: ArticleModuleType, id: string): ArticleModule {
@@ -120,6 +153,10 @@ export function makeEmptyModule(type: ArticleModuleType, id: string): ArticleMod
       return { id, type, title: 'Relaciones explícitas', data: {} }
     case 'family-tree':
       return { id, type, title: 'Árbol genealógico', data: { treeId: null } }
+    case 'organization-membership':
+      return { id, type, title: 'Membresías', data: {} }
+    case 'lifeline':
+      return { id, type, title: 'Línea de vida', data: { milestones: [] } }
   }
 }
 
@@ -132,7 +169,7 @@ export interface World {
   created_at: string
 }
 
-export type ArticleType = 'document' | 'event'
+export type ArticleType = 'document' | 'event' | 'organization'
 
 export interface Article {
   id: string
@@ -248,6 +285,18 @@ export interface ArticleTemplate {
   default_header_fields: HeaderField[]
   default_modules: ArticleModule[]
   created_at: string
+}
+
+// ── Organizations (panel macro) ────────────────────────────────────────────
+
+/** Fila usada por el panel /worlds/[id]/organizations. */
+export interface OrganizationSummary {
+  id: string
+  title: string
+  created_at: string
+  updated_at: string
+  /** Conteo de aristas semánticas "Miembro de" apuntando a esta organización. */
+  members_count: number
 }
 
 // ── Graph ──────────────────────────────────────────────────────────────────
