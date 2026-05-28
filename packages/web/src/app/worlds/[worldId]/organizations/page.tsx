@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { NewOrganizationForm } from '@frontend/components/NewOrganizationForm'
+import { WorldNav } from '@frontend/components/WorldNav'
 
 interface Props {
   params: { worldId: string }
@@ -26,30 +27,24 @@ export default async function OrganizationsPage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-4 flex-wrap">
-          <Link
-            href={`/worlds/${params.worldId}`}
-            className="text-sm text-gray-500 hover:text-indigo-600 transition-colors"
-          >
-            ← {world.title}
-          </Link>
-          <h1 className="text-lg font-bold text-gray-900">Organizaciones</h1>
-          <span className="text-xs text-gray-400">
-            {organizations.length}{' '}
-            {organizations.length === 1 ? 'organización' : 'organizaciones'}
-            {organizations.length > 0 && ` · ${totalMembers} membresías`}
-          </span>
-          <div className="ml-auto">
-            <NewOrganizationForm worldId={params.worldId} />
-          </div>
-        </div>
-      </header>
+      <WorldNav worldId={params.worldId} worldTitle={world.title} />
 
-      <section className="max-w-5xl mx-auto px-6 py-10">
+      <section className="max-w-5xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">Facciones</h1>
+            <span className="text-xs text-gray-400">
+              {organizations.length}{' '}
+              {organizations.length === 1 ? 'facción' : 'facciones'}
+              {organizations.length > 0 && ` · ${totalMembers} membresías`}
+            </span>
+          </div>
+          <NewOrganizationForm worldId={params.worldId} />
+        </div>
+
         {organizations.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
-            <p className="text-lg mb-2">No hay organizaciones todavía</p>
+            <p className="text-lg mb-2">No hay facciones todavía</p>
             <p className="text-sm">
               Creá una con el botón <strong>“+ Nueva organización”</strong> de
               arriba. Después, cualquier artículo del mundo puede declarar que
