@@ -216,16 +216,24 @@ export function ModulesEditor({
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <span className="text-xs font-medium text-gray-500">Añadir módulo:</span>
-        {(Object.keys(MODULE_LABELS) as ArticleModuleType[]).map(type => (
-          <button
-            key={type}
-            type="button"
-            onClick={() => addModule(type)}
-            className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            + {MODULE_LABELS[type]}
-          </button>
-        ))}
+        {(Object.keys(MODULE_LABELS) as ArticleModuleType[]).map(type => {
+          const accent =
+            type === 'organization-membership'
+              ? 'border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
+              : type === 'lifeline'
+              ? 'border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100'
+              : 'border-gray-200 text-gray-700 hover:bg-gray-100'
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => addModule(type)}
+              className={`text-xs px-2 py-1 rounded border transition-colors ${accent}`}
+            >
+              + {MODULE_LABELS[type]}
+            </button>
+          )
+        })}
       </div>
     </section>
   )

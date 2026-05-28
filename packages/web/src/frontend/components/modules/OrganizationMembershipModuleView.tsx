@@ -129,6 +129,12 @@ export function OrganizationMembershipModuleView({
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-gray-500">
+        Declará una o varias organizaciones a las que pertenece este
+        artículo. Cada elección añade una arista{' '}
+        <span className="font-mono">Miembro de</span> en el grafo del mundo.
+      </p>
+
       {/* ── Combobox de añadir membresía ──────────────────────────────── */}
       <div className="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-2">
         <div className="grid grid-cols-1 sm:grid-cols-[1fr,auto] gap-2">
@@ -202,7 +208,12 @@ export function OrganizationMembershipModuleView({
           Este artículo no es miembro de ninguna organización todavía.
         </p>
       ) : (
-        <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+        <>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+            Pertenece a {memberships.length}{' '}
+            {memberships.length === 1 ? 'organización' : 'organizaciones'}
+          </p>
+          <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
           {memberships.map(m => (
             <li
               key={m.relationId}
@@ -228,6 +239,7 @@ export function OrganizationMembershipModuleView({
             </li>
           ))}
         </ul>
+        </>
       )}
     </div>
   )
