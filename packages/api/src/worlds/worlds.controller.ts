@@ -59,4 +59,12 @@ export class WorldsController {
   ) {
     return this.worldsService.listTrees(worldId, accessToken)
   }
+
+  @Get(':id/organizations')
+  listOrganizations(
+    @Param('id') worldId: string,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.worldsService.listOrganizations(worldId, accessToken)
+  }
 }

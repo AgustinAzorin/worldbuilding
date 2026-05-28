@@ -14,6 +14,8 @@ import { TableModuleView } from './modules/TableModuleView'
 import { RelationsGraphModuleView } from './modules/RelationsGraphModuleView'
 import { RelationsManagerModuleView } from './modules/RelationsManagerModuleView'
 import { FamilyTreeModuleView } from './modules/FamilyTreeModuleView'
+import { OrganizationMembershipModuleView } from './modules/OrganizationMembershipModuleView'
+import { LifelineModuleView } from './modules/LifelineModuleView'
 import { PrivacyToggle, PRIVATE_BLOCK_CLASS } from './PrivacyToggle'
 
 interface Props {
@@ -27,13 +29,15 @@ interface Props {
 }
 
 const MODULE_LABELS: Record<ArticleModuleType, string> = {
-  'rich-text':         'Texto',
-  'image':             'Imagen',
-  'chart':             'Estadísticas',
-  'relations-graph':   'Relaciones',
-  'table':             'Tabla',
-  'relations-manager': 'Relaciones explícitas',
-  'family-tree':       'Árbol genealógico',
+  'rich-text':               'Texto',
+  'image':                   'Imagen',
+  'chart':                   'Estadísticas',
+  'relations-graph':         'Relaciones',
+  'table':                   'Tabla',
+  'relations-manager':       'Relaciones explícitas',
+  'family-tree':             'Árbol genealógico',
+  'organization-membership': 'Membresías',
+  'lifeline':                'Línea de vida',
 }
 
 function rid(): string {
@@ -193,6 +197,17 @@ export function ModulesEditor({
                 articleId={articleId}
                 onChange={updateModule}
               />
+            )}
+            {mod.type === 'organization-membership' && (
+              <OrganizationMembershipModuleView
+                module={mod}
+                worldId={worldId}
+                articleId={articleId}
+                initialRelations={outgoing}
+              />
+            )}
+            {mod.type === 'lifeline' && (
+              <LifelineModuleView module={mod} onChange={updateModule} />
             )}
           </div>
         </article>

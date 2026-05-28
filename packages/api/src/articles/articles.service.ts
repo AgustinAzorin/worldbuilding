@@ -75,15 +75,22 @@ function pickFirst<T>(v: T | T[] | null): T | null {
 export class ArticlesService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  async search(worldId: string, query: string, accessToken: string) {
-    const { data, error } = await this.supabase
+  async search(
+    worldId: string,
+    query: string,
+    accessToken: string,
+    typeFilter?: ArticleType,
+  ) {
+    let q = this.supabase
       .forUser(accessToken)
       .from('articles')
       .select('id, title')
       .eq('world_id', worldId)
       .ilike('title', `%${query}%`)
-      .order('title')
-      .limit(10)
+
+    if (typeFilter) q = q.eq('type', typeFilter)
+
+    const { data, error } = await q.order('title').limit(10)
 
     if (error) throw new InternalServerErrorException(error.message)
     return data

@@ -31,7 +31,7 @@ export class UpdateArticleDto {
   modules!: ArticleModule[]
 
   @IsOptional()
-  @IsIn(['document', 'event'])
+  @IsIn(['document', 'event', 'organization'])
   type?: ArticleType
 
   @IsOptional()

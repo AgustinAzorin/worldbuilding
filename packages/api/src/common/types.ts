@@ -15,12 +15,16 @@ export interface TipTapContent {
 
 // ── Tipo de artículo ──────────────────────────────────────────────────────
 
-export type ArticleType = 'document' | 'event'
+export type ArticleType = 'document' | 'event' | 'organization'
 
-export const ARTICLE_TYPES: ReadonlyArray<ArticleType> = ['document', 'event']
+export const ARTICLE_TYPES: ReadonlyArray<ArticleType> = [
+  'document',
+  'event',
+  'organization',
+]
 
 export function isArticleType(v: unknown): v is ArticleType {
-  return v === 'document' || v === 'event'
+  return v === 'document' || v === 'event' || v === 'organization'
 }
 
 // ── Article relations ─────────────────────────────────────────────────────
@@ -54,6 +58,8 @@ export type ArticleModuleType =
   | 'image'
   | 'relations-manager'
   | 'family-tree'
+  | 'organization-membership'
+  | 'lifeline'
 
 /** Campos comunes a todos los módulos — incluyendo la niebla de guerra. */
 interface ArticleModuleBase {
@@ -108,6 +114,33 @@ export interface FamilyTreeModule extends ArticleModuleBase {
   data: { treeId: string | null }
 }
 
+/**
+ * Membresías de organización. El módulo no almacena estado propio: las
+ * pertenencias viven en `article_relations` con connection_type='semantic'
+ * y relation_label='Miembro de'. El componente sólo es la interfaz para
+ * declarar/borrar esas aristas desde el editor del artículo.
+ */
+export interface OrganizationMembershipModule extends ArticleModuleBase {
+  type: 'organization-membership'
+  data: Record<string, never>
+}
+
+/** Hito de la línea de vida interna (biografía / cronología institucional). */
+export interface LifelineMilestone {
+  id: string
+  /** Año numérico — sólo se usa para ordenar ascendentemente. */
+  year: number
+  /** Etiqueta humana de la fecha (ej: "Año 45 de la Segunda Era"). */
+  date_display: string
+  title: string
+  description: string
+}
+
+export interface LifelineModule extends ArticleModuleBase {
+  type: 'lifeline'
+  data: { milestones: LifelineMilestone[] }
+}
+
 export type ArticleModule =
   | RichTextModule
   | ImageModule
@@ -116,6 +149,8 @@ export type ArticleModule =
   | TableModule
   | RelationsManagerModule
   | FamilyTreeModule
+  | OrganizationMembershipModule
+  | LifelineModule
 
 // ── Type guards (validación en runtime para DTOs) ─────────────────────────
 
@@ -157,6 +192,17 @@ function isTableRow(v: unknown): v is TableRow {
   return Object.values(v.cells).every(isStr)
 }
 
+function isLifelineMilestone(v: unknown): v is LifelineMilestone {
+  return (
+    isObj(v) &&
+    isStr(v.id) &&
+    isNum(v.year) &&
+    isStr(v.date_display) &&
+    isStr(v.title) &&
+    isStr(v.description)
+  )
+}
+
 export function isArticleModule(v: unknown): v is ArticleModule {
   if (!isObj(v) || !isStr(v.id) || !isStr(v.title)) return false
   if (!isOptBool(v.is_private)) return false
@@ -179,12 +225,19 @@ export function isArticleModule(v: unknown): v is ArticleModule {
       )
     case 'relations-graph':
     case 'relations-manager':
+    case 'organization-membership':
       return isObj(data) && Object.keys(data).length === 0
     case 'family-tree':
       // Aceptamos `data: {}` (módulos pre-migración) y `{ treeId: string|null }`.
       if (!isObj(data)) return false
       if (!('treeId' in data)) return Object.keys(data).length === 0
       return data.treeId === null || isStr(data.treeId)
+    case 'lifeline':
+      return (
+        isObj(data) &&
+        Array.isArray(data.milestones) &&
+        data.milestones.every(isLifelineMilestone)
+      )
     case 'table':
       return (
         isObj(data) &&

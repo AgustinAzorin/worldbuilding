@@ -18,6 +18,7 @@ import { CreateSemanticRelationDto } from './dto/create-semantic-relation.dto'
 import { UpdateRelationDiplomacyDto } from './dto/update-relation-diplomacy.dto'
 import { AuthGuard } from '../common/auth/auth.guard'
 import { CurrentUser } from '../common/auth/current-user.decorator'
+import { isArticleType } from '../common/types'
 
 interface UserCtx {
   user: { id: string }
@@ -34,9 +35,11 @@ export class ArticlesController {
   search(
     @Query('worldId') worldId: string,
     @Query('q') q = '',
+    @Query('type') type: string | undefined,
     @CurrentUser() { accessToken }: UserCtx
   ) {
-    return this.articlesService.search(worldId, q, accessToken)
+    const typeFilter = isArticleType(type) ? type : undefined
+    return this.articlesService.search(worldId, q, accessToken, typeFilter)
   }
 
   // ── Semantic relations CRUD (declared via UI) ────────────────────────────

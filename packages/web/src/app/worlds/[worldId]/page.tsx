@@ -59,6 +59,14 @@ export default async function WorldPage({ params }: Props) {
               <span>Árboles</span>
             </Link>
             <Link
+              href={`/worlds/${params.worldId}/organizations`}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition-colors"
+              title="Organizaciones"
+            >
+              <span>🏛️</span>
+              <span>Organizaciones</span>
+            </Link>
+            <Link
               href={`/worlds/${params.worldId}/graph`}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-purple-600 transition-colors"
               title="Vista de grafo"
