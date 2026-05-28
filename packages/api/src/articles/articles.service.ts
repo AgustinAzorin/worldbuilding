@@ -8,6 +8,7 @@ import {
 import { SupabaseService } from '../common/supabase/supabase.service'
 import {
   mentionIdsFromModules,
+  stripPrivateBlocks,
   type ArticleModule,
   type ArticleType,
   type HeaderField,
@@ -35,6 +36,7 @@ interface OutgoingRelationRow {
   id: string
   connection_type: RelationConnectionType
   relation_label: string | null
+  diplomacy_score: number | null
   target: { id: string; title: string } | { id: string; title: string }[] | null
 }
 
@@ -42,6 +44,7 @@ interface IncomingRelationRow {
   id: string
   connection_type: RelationConnectionType
   relation_label: string | null
+  diplomacy_score: number | null
   source: { id: string; title: string } | { id: string; title: string }[] | null
 }
 
@@ -51,6 +54,16 @@ export interface FlatRelationEdge {
   title: string
   connectionType: RelationConnectionType
   label: string | null
+  /** Sólo presente en aristas semánticas. NULL = sin ponderar. */
+  diplomacyScore: number | null
+}
+
+function clampDiplomacy(v: number | null | undefined): number | null {
+  if (v === null || v === undefined) return null
+  if (!Number.isInteger(v)) return null
+  if (v < -100) return -100
+  if (v >  100) return  100
+  return v
 }
 
 function pickFirst<T>(v: T | T[] | null): T | null {
@@ -76,28 +89,34 @@ export class ArticlesService {
     return data
   }
 
-  async getById(articleId: string, accessToken: string) {
+  async getById(articleId: string, userId: string, accessToken: string) {
     const client = this.supabase.forUser(accessToken)
 
+    // Traemos el artículo + user_id del mundo en un solo round-trip para
+    // poder evaluar la propiedad y aplicar la niebla de guerra.
     const { data: article, error } = await client
       .from('articles')
-      .select('*')
+      .select('*, world:worlds!inner(user_id)')
       .eq('id', articleId)
       .single()
 
     if (error) throw new NotFoundException('Article not found')
 
+    const worldUserId =
+      (Array.isArray(article.world) ? article.world[0]?.user_id : article.world?.user_id) ?? null
+    const isOwner = worldUserId !== null && worldUserId === userId
+
     const [outResult, inResult] = await Promise.all([
       client
         .from('article_relations')
         .select(
-          'id, connection_type, relation_label, target:articles!article_relations_target_article_id_fkey(id, title)',
+          'id, connection_type, relation_label, diplomacy_score, target:articles!article_relations_target_article_id_fkey(id, title)',
         )
         .eq('source_article_id', articleId),
       client
         .from('article_relations')
         .select(
-          'id, connection_type, relation_label, source:articles!article_relations_source_article_id_fkey(id, title)',
+          'id, connection_type, relation_label, diplomacy_score, source:articles!article_relations_source_article_id_fkey(id, title)',
         )
         .eq('target_article_id', articleId),
     ])
@@ -112,6 +131,7 @@ export class ArticlesService {
           title: target.title,
           connectionType: r.connection_type,
           label: r.relation_label,
+          diplomacyScore: r.diplomacy_score,
         }
       })
       .filter((r): r is FlatRelationEdge => r !== null)
@@ -126,16 +146,32 @@ export class ArticlesService {
           title: source.title,
           connectionType: r.connection_type,
           label: r.relation_label,
+          diplomacyScore: r.diplomacy_score,
         }
       })
       .filter((r): r is FlatRelationEdge => r !== null)
 
+    const rawHeaderFields = (article.header_fields ?? []) as HeaderField[]
+    const rawModules      = (article.modules       ?? []) as ArticleModule[]
+
+    // Niebla de guerra: si el solicitante NO es el dueño del mundo,
+    // barremos los arrays JSONB y eliminamos cualquier item privado.
+    const header_fields = isOwner ? rawHeaderFields : stripPrivateBlocks(rawHeaderFields)
+    const modules       = isOwner ? rawModules      : stripPrivateBlocks(rawModules)
+
+    // Descartamos el join `world` antes de devolver para no filtrar el
+    // user_id del propietario a clientes no-owner.
+    const { world: _world, ...articleRow } = article as Record<string, unknown> & {
+      world: unknown
+    }
+
     return {
-      ...article,
-      header_fields: (article.header_fields ?? []) as HeaderField[],
-      modules:       (article.modules       ?? []) as ArticleModule[],
+      ...articleRow,
+      header_fields,
+      modules,
       outgoing,
       incoming,
+      is_owner: isOwner,
     }
   }
 
@@ -220,7 +256,7 @@ export class ArticlesService {
       .forUser(accessToken)
       .from('article_relations')
       .select(
-        'id, connection_type, relation_label, target:articles!article_relations_target_article_id_fkey(id, title)',
+        'id, connection_type, relation_label, diplomacy_score, target:articles!article_relations_target_article_id_fkey(id, title)',
       )
       .eq('source_article_id', articleId)
       .eq('connection_type', 'semantic')
@@ -238,6 +274,7 @@ export class ArticlesService {
           title: target.title,
           connectionType: r.connection_type,
           label: r.relation_label,
+          diplomacyScore: r.diplomacy_score,
         }
       })
       .filter((r): r is FlatRelationEdge => r !== null)
@@ -247,6 +284,7 @@ export class ArticlesService {
     sourceId: string,
     targetId: string,
     label: string,
+    diplomacyScore: number | null | undefined,
     accessToken: string,
   ): Promise<FlatRelationEdge> {
     const trimmedLabel = label.trim()
@@ -254,6 +292,8 @@ export class ArticlesService {
     if (sourceId === targetId) {
       throw new BadRequestException('source and target must differ')
     }
+
+    const score = clampDiplomacy(diplomacyScore)
 
     const client = this.supabase.forUser(accessToken)
 
@@ -281,6 +321,7 @@ export class ArticlesService {
         target_article_id: targetId,
         connection_type:   'semantic',
         relation_label:    trimmedLabel,
+        diplomacy_score:   score,
       })
       .select('id')
       .single()
@@ -299,6 +340,28 @@ export class ArticlesService {
       title: target.title,
       connectionType: 'semantic',
       label: trimmedLabel,
+      diplomacyScore: score,
+    }
+  }
+
+  async updateSemanticRelationDiplomacy(
+    relationId: string,
+    diplomacyScore: number | null,
+    accessToken: string,
+  ): Promise<void> {
+    const score = clampDiplomacy(diplomacyScore)
+    const client = this.supabase.forUser(accessToken)
+
+    const { data, error } = await client
+      .from('article_relations')
+      .update({ diplomacy_score: score })
+      .eq('id', relationId)
+      .eq('connection_type', 'semantic')
+      .select('id')
+
+    if (error) throw new InternalServerErrorException(error.message)
+    if (!data || data.length === 0) {
+      throw new NotFoundException('semantic relation not found')
     }
   }
 

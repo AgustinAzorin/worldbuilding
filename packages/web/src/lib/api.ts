@@ -211,12 +211,25 @@ export const api = {
       articleId: string,
       targetId: string,
       label: string,
+      diplomacyScore?: number | null,
     ) =>
       request<import('./types').ArticleRelationEdge>(
         'POST',
         `/articles/${articleId}/relations`,
         token,
-        { targetId, label },
+        { targetId, label, diplomacyScore: diplomacyScore ?? null },
+      ),
+
+    updateRelationDiplomacy: (
+      token: string,
+      relationId: string,
+      diplomacyScore: number | null,
+    ) =>
+      request<void>(
+        'PATCH',
+        `/articles/relations/${relationId}/diplomacy`,
+        token,
+        { diplomacyScore },
       ),
 
     deleteSemanticRelation: (token: string, relationId: string) =>

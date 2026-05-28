@@ -33,17 +33,56 @@ function computeDegrees(data: GraphData): Map<string, number> {
   return map
 }
 
-// ── Color por etiqueta semántica ─────────────────────────────────────────
-// Mapea palabras clave del label a colores llamativos sin tener que
-// definir cada etiqueta a mano.
-function colorForSemanticLabel(label: string | null): string {
-  if (!label) return '#a855f7' // violeta neutro
-  const l = label.toLowerCase()
-  if (/(rival|enem|odio)/.test(l))                              return '#ef4444' // rojo
-  if (/(alia|amig|amor|esposa|esposo|amante)/.test(l))          return '#22c55e' // verde
-  if (/(padre|madre|hijo|hija|herman|abuel|familia)/.test(l))   return '#f59e0b' // ámbar
-  if (/(líder|lider|maestr|mentor|jefe|rey|reina)/.test(l))     return '#0ea5e9' // celeste
-  return '#a855f7' // violeta — semántico genérico
+// ── Interpolación de color por diplomacy_score ───────────────────────────
+//
+// El eje diplomático va de −100 (hostilidad / guerra) → 0 (neutral) →
+// +100 (alianza). Mapeamos linealmente cada componente RGB entre tres
+// anclas, así obtenemos un degradado continuo sin pasar por
+// representaciones HSL más caras en el hot path del canvas.
+//
+//   −100 → ROJO   #ef4444 = (239,  68,  68)
+//      0 → GRIS   #94a3b8 = (148, 163, 184)
+//   +100 → VERDE  #22c55e = ( 34, 197,  94)
+//
+// Cacheamos los strings ya formateados para los 201 enteros posibles
+// para que el render del grafo no asigne strings por frame.
+
+const COLOR_WAR     = [239,  68,  68] as const
+const COLOR_NEUTRAL = [148, 163, 184] as const
+const COLOR_ALLY    = [ 34, 197,  94] as const
+const COLOR_MENTION = 'rgba(148,163,184,0.55)' as const
+
+function lerp(a: number, b: number, t: number): number {
+  return Math.round(a + (b - a) * t)
+}
+
+function buildDiplomacyColor(score: number): string {
+  if (score < 0) {
+    const t = (score + 100) / 100  // −100 → 0  ⇒ t: 0 → 1
+    const r = lerp(COLOR_WAR[0],     COLOR_NEUTRAL[0], t)
+    const g = lerp(COLOR_WAR[1],     COLOR_NEUTRAL[1], t)
+    const b = lerp(COLOR_WAR[2],     COLOR_NEUTRAL[2], t)
+    return `rgb(${r},${g},${b})`
+  }
+  const t = score / 100              // 0 → +100 ⇒ t: 0 → 1
+  const r = lerp(COLOR_NEUTRAL[0], COLOR_ALLY[0], t)
+  const g = lerp(COLOR_NEUTRAL[1], COLOR_ALLY[1], t)
+  const b = lerp(COLOR_NEUTRAL[2], COLOR_ALLY[2], t)
+  return `rgb(${r},${g},${b})`
+}
+
+// Tabla [-100..100] precalculada para evitar allocs por frame.
+const DIPLOMACY_COLOR_LUT: string[] = Array.from({ length: 201 }, (_, i) =>
+  buildDiplomacyColor(i - 100),
+)
+const NEUTRAL_COLOR = DIPLOMACY_COLOR_LUT[100]
+
+function colorForDiplomacy(score: number | null | undefined): string {
+  if (score === null || score === undefined || Number.isNaN(score)) {
+    return NEUTRAL_COLOR
+  }
+  const clamped = Math.max(-100, Math.min(100, Math.round(score)))
+  return DIPLOMACY_COLOR_LUT[clamped + 100]
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
@@ -217,8 +256,8 @@ export function GraphView({ worldId, data }: GraphViewProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const linkColor = useCallback((link: any): string => {
     const l = link as GraphLink
-    if (l.connection_type === 'semantic') return colorForSemanticLabel(l.relation_label)
-    return 'rgba(148,163,184,0.55)'
+    if (l.connection_type === 'semantic') return colorForDiplomacy(l.diplomacy_score)
+    return COLOR_MENTION
   }, [])
 
   const linkCanvasObject = useCallback(
@@ -237,8 +276,8 @@ export function GraphView({ worldId, data }: GraphViewProps) {
       ctx.save()
       const isSemantic = l.connection_type === 'semantic'
       const color = isSemantic
-        ? colorForSemanticLabel(l.relation_label)
-        : 'rgba(148,163,184,0.55)'
+        ? colorForDiplomacy(l.diplomacy_score)
+        : COLOR_MENTION
 
       if (isSemantic) {
         ctx.setLineDash([])
@@ -354,17 +393,19 @@ export function GraphView({ worldId, data }: GraphViewProps) {
       )}
 
       {/* Leyenda compacta */}
-      <div className="absolute bottom-3 left-3 z-10 text-xs text-gray-300 bg-gray-900/70 rounded-md px-3 py-2 border border-gray-800 space-y-1">
+      <div className="absolute bottom-3 left-3 z-10 text-xs text-gray-300 bg-gray-900/80 rounded-md px-3 py-2 border border-gray-800 space-y-1.5">
         <div className="flex items-center gap-2">
           <span className="inline-block w-6 border-t-2 border-dashed border-slate-400" />
           <span>Menciones (auto)</span>
         </div>
         <div className="flex items-center gap-2">
           <span
-            className="inline-block w-6 border-t-[3px] border-solid"
-            style={{ borderColor: '#a855f7' }}
+            className="inline-block w-16 h-1.5 rounded-sm"
+            style={{
+              background: `linear-gradient(to right, ${colorForDiplomacy(-100)}, ${colorForDiplomacy(0)}, ${colorForDiplomacy(100)})`,
+            }}
           />
-          <span>Relaciones explícitas</span>
+          <span>Hostilidad ↔ Alianza</span>
         </div>
       </div>
     </div>

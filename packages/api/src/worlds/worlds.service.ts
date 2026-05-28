@@ -98,7 +98,9 @@ export class WorldsService {
     const [relRes, treeEdgesRes] = await Promise.all([
       client
         .from('article_relations')
-        .select('source_article_id, target_article_id, connection_type, relation_label')
+        .select(
+          'source_article_id, target_article_id, connection_type, relation_label, diplomacy_score',
+        )
         .in('source_article_id', articleIds),
       // Aristas de árboles genealógicos del mundo: las metemos al grafo
       // como links semánticos sintéticos parent → child con label
@@ -120,6 +122,7 @@ export class WorldsService {
           | 'semantic'
           | 'mention',
       relation_label: (r.relation_label as string | null) ?? null,
+      diplomacy_score: (r.diplomacy_score as number | null) ?? null,
     }))
 
     const treeLinks = (treeEdgesRes.data ?? []).map(e => ({
@@ -127,6 +130,7 @@ export class WorldsService {
       target: e.child_article_id  as string,
       connection_type: 'semantic' as const,
       relation_label: 'Parentesco',
+      diplomacy_score: null,
     }))
 
     return {

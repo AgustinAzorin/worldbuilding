@@ -15,6 +15,7 @@ import { ArticlesService } from './articles.service'
 import { CreateArticleDto } from './dto/create-article.dto'
 import { UpdateArticleDto } from './dto/update-article.dto'
 import { CreateSemanticRelationDto } from './dto/create-semantic-relation.dto'
+import { UpdateRelationDiplomacyDto } from './dto/update-relation-diplomacy.dto'
 import { AuthGuard } from '../common/auth/auth.guard'
 import { CurrentUser } from '../common/auth/current-user.decorator'
 
@@ -58,6 +59,21 @@ export class ArticlesController {
       articleId,
       dto.targetId,
       dto.label,
+      dto.diplomacyScore ?? null,
+      accessToken,
+    )
+  }
+
+  @Patch('relations/:relationId/diplomacy')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  updateRelationDiplomacy(
+    @Param('relationId') relationId: string,
+    @Body() dto: UpdateRelationDiplomacyDto,
+    @CurrentUser() { accessToken }: UserCtx,
+  ) {
+    return this.articlesService.updateSemanticRelationDiplomacy(
+      relationId,
+      dto.diplomacyScore,
       accessToken,
     )
   }
@@ -72,8 +88,11 @@ export class ArticlesController {
   }
 
   @Get(':id')
-  getById(@Param('id') id: string, @CurrentUser() { accessToken }: UserCtx) {
-    return this.articlesService.getById(id, accessToken)
+  getById(
+    @Param('id') id: string,
+    @CurrentUser() { user, accessToken }: UserCtx,
+  ) {
+    return this.articlesService.getById(id, user.id, accessToken)
   }
 
   @Post()
