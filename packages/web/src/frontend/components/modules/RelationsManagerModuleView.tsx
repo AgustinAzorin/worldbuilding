@@ -23,6 +23,59 @@ async function getToken(): Promise<string> {
   return session?.access_token ?? ''
 }
 
+// Mismo encoding que el grafo: −100 rojo, 0 gris, +100 verde.
+function diplomacyTextColor(score: number | null): string {
+  if (score === null) return 'text-slate-500'
+  if (score <= -60)   return 'text-red-600'
+  if (score <= -20)   return 'text-orange-500'
+  if (score <   20)   return 'text-slate-500'
+  if (score <   60)   return 'text-lime-600'
+  return 'text-green-600'
+}
+
+function diplomacyLabel(score: number | null): string {
+  if (score === null) return 'Sin ponderar'
+  if (score <= -75)   return 'Guerra'
+  if (score <= -25)   return 'Hostil'
+  if (score <    25)  return 'Neutral'
+  if (score <    75)  return 'Aliado'
+  return 'Alianza total'
+}
+
+interface DiplomacySliderProps {
+  value: number | null
+  onChange: (next: number) => void
+  onCommit: (next: number) => void
+}
+
+function DiplomacySlider({ value, onChange, onCommit }: DiplomacySliderProps) {
+  const display = value ?? 0
+  const colorClass = diplomacyTextColor(value)
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[10px] font-medium text-gray-500">
+        <span>Hostilidad</span>
+        <span className={`font-semibold ${colorClass}`}>
+          {display > 0 ? `+${display}` : display} · {diplomacyLabel(value)}
+        </span>
+        <span>Alianza</span>
+      </div>
+      <input
+        type="range"
+        min={-100}
+        max={100}
+        step={1}
+        value={display}
+        onChange={e => onChange(Number.parseInt(e.target.value, 10))}
+        onPointerUp={e => onCommit(Number.parseInt((e.target as HTMLInputElement).value, 10))}
+        onKeyUp={e => onCommit(Number.parseInt((e.target as HTMLInputElement).value, 10))}
+        aria-label="Puntaje diplomático entre -100 y 100"
+        className="w-full h-1.5 appearance-none rounded-full cursor-pointer bg-gradient-to-r from-red-500 via-slate-300 to-green-500 accent-blue-600"
+      />
+    </div>
+  )
+}
+
 interface Props {
   module: RelationsManagerModule
   worldId: string
@@ -49,6 +102,7 @@ export function RelationsManagerModuleView({
   const [suggestions, setSuggestions] = useState<ArticleSuggestion[]>([])
   const [picked, setPicked] = useState<ArticleSuggestion | null>(null)
   const [label, setLabel] = useState('')
+  const [newScore, setNewScore] = useState<number>(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -84,6 +138,7 @@ export function RelationsManagerModuleView({
     setQuery('')
     setPicked(null)
     setLabel('')
+    setNewScore(0)
     setSuggestions([])
     setShowSuggestions(false)
   }, [])
@@ -96,8 +151,13 @@ export function RelationsManagerModuleView({
     setSaving(true); setError(null)
     try {
       const token = await getToken()
+      // newScore === 0 lo guardamos como NULL para distinguir "neutro
+      // ponderado" de "no ponderado todavía". El criterio del producto es
+      // que 0 explícito sigue siendo neutro pintado en gris → mandamos el
+      // valor directo. El usuario puede después borrar la relación si
+      // realmente no quiere ponderar.
       const edge = await api.articles.createSemanticRelation(
-        token, articleId, picked.id, label.trim(),
+        token, articleId, picked.id, label.trim(), newScore,
       )
       setRelations(prev => [...prev, edge])
       reset()
@@ -106,7 +166,7 @@ export function RelationsManagerModuleView({
     } finally {
       setSaving(false)
     }
-  }, [articleId, label, picked, reset])
+  }, [articleId, label, newScore, picked, reset])
 
   const handleRemove = useCallback(async (relationId: string) => {
     setError(null)
@@ -121,6 +181,25 @@ export function RelationsManagerModuleView({
       setError(e instanceof Error ? e.message : 'No se pudo eliminar la relación')
     }
   }, [relations])
+
+  // Slider local (sin persistir) — pintamos optimistamente mientras el
+  // usuario arrastra.
+  const handleScoreDrag = useCallback((relationId: string, score: number) => {
+    setRelations(prev =>
+      prev.map(r => (r.relationId === relationId ? { ...r, diplomacyScore: score } : r)),
+    )
+  }, [])
+
+  // Commit (pointer-up / keyboard release) — persiste el valor final.
+  const handleScoreCommit = useCallback(async (relationId: string, score: number) => {
+    setError(null)
+    try {
+      const token = await getToken()
+      await api.articles.updateRelationDiplomacy(token, relationId, score)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar el puntaje diplomático')
+    }
+  }, [])
 
   if (!articleId) {
     return (
@@ -200,6 +279,14 @@ export function RelationsManagerModuleView({
             {saving ? 'Guardando…' : 'Añadir'}
           </button>
         </div>
+
+        {/* Slider de diplomacia para la NUEVA relación (sólo semánticas) */}
+        <DiplomacySlider
+          value={newScore}
+          onChange={setNewScore}
+          onCommit={setNewScore}
+        />
+
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
 
@@ -213,25 +300,32 @@ export function RelationsManagerModuleView({
           {relations.map(r => (
             <li
               key={r.relationId}
-              className="flex items-center gap-3 px-3 py-2 text-sm"
+              className="px-3 py-2 text-sm space-y-2"
             >
-              <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-xs font-medium">
-                {r.label ?? '—'}
-              </span>
-              <Link
-                href={`/worlds/${worldId}/articles/${r.id}`}
-                className="text-blue-600 hover:underline flex-1 truncate"
-              >
-                {r.title}
-              </Link>
-              <button
-                type="button"
-                onClick={() => handleRemove(r.relationId)}
-                aria-label={`Eliminar relación con ${r.title}`}
-                className="text-xs text-gray-400 hover:text-red-600"
-              >
-                Eliminar
-              </button>
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-xs font-medium">
+                  {r.label ?? '—'}
+                </span>
+                <Link
+                  href={`/worlds/${worldId}/articles/${r.id}`}
+                  className="text-blue-600 hover:underline flex-1 truncate"
+                >
+                  {r.title}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(r.relationId)}
+                  aria-label={`Eliminar relación con ${r.title}`}
+                  className="text-xs text-gray-400 hover:text-red-600"
+                >
+                  Eliminar
+                </button>
+              </div>
+              <DiplomacySlider
+                value={r.diplomacyScore}
+                onChange={score => handleScoreDrag(r.relationId, score)}
+                onCommit={score => handleScoreCommit(r.relationId, score)}
+              />
             </li>
           ))}
         </ul>

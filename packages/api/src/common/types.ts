@@ -40,6 +40,8 @@ export interface HeaderField {
   label: string
   value: string
   type: HeaderFieldType
+  /** Niebla de guerra: si es true, el server lo recorta para no-propietarios. */
+  is_private?: boolean
 }
 
 // ── Módulos del artículo ──────────────────────────────────────────────────
@@ -53,17 +55,21 @@ export type ArticleModuleType =
   | 'relations-manager'
   | 'family-tree'
 
-export interface RichTextModule {
+/** Campos comunes a todos los módulos — incluyendo la niebla de guerra. */
+interface ArticleModuleBase {
   id: string
-  type: 'rich-text'
   title: string
+  /** Niebla de guerra: si es true, el server lo recorta para no-propietarios. */
+  is_private?: boolean
+}
+
+export interface RichTextModule extends ArticleModuleBase {
+  type: 'rich-text'
   data: { doc: TipTapContent }
 }
 
-export interface ImageModule {
-  id: string
+export interface ImageModule extends ArticleModuleBase {
   type: 'image'
-  title: string
   data: { url: string | null; path: string | null; alt: string }
 }
 
@@ -73,41 +79,31 @@ export interface ChartRow {
   value: number
 }
 
-export interface ChartModule {
-  id: string
+export interface ChartModule extends ArticleModuleBase {
   type: 'chart'
-  title: string
   data: { kind: 'radar' | 'bar'; rows: ChartRow[] }
 }
 
-export interface RelationsGraphModule {
-  id: string
+export interface RelationsGraphModule extends ArticleModuleBase {
   type: 'relations-graph'
-  title: string
   data: Record<string, never>
 }
 
 export interface TableColumn { id: string; label: string }
 export interface TableRow    { id: string; cells: Record<string, string> }
 
-export interface TableModule {
-  id: string
+export interface TableModule extends ArticleModuleBase {
   type: 'table'
-  title: string
   data: { columns: TableColumn[]; rows: TableRow[] }
 }
 
-export interface RelationsManagerModule {
-  id: string
+export interface RelationsManagerModule extends ArticleModuleBase {
   type: 'relations-manager'
-  title: string
   data: Record<string, never>
 }
 
-export interface FamilyTreeModule {
-  id: string
+export interface FamilyTreeModule extends ArticleModuleBase {
   type: 'family-tree'
-  title: string
   /** Referencia a un árbol genealógico del mundo. `null` = sin asignar. */
   data: { treeId: string | null }
 }
@@ -127,6 +123,7 @@ const isStr = (v: unknown): v is string => typeof v === 'string'
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
+const isOptBool = (v: unknown): boolean => v === undefined || typeof v === 'boolean'
 
 export function isHeaderField(v: unknown): v is HeaderField {
   if (!isObj(v)) return false
@@ -134,7 +131,8 @@ export function isHeaderField(v: unknown): v is HeaderField {
     isStr(v.id) &&
     isStr(v.label) &&
     isStr(v.value) &&
-    (v.type === 'text' || v.type === 'number')
+    (v.type === 'text' || v.type === 'number') &&
+    isOptBool(v.is_private)
   )
 }
 
@@ -161,6 +159,7 @@ function isTableRow(v: unknown): v is TableRow {
 
 export function isArticleModule(v: unknown): v is ArticleModule {
   if (!isObj(v) || !isStr(v.id) || !isStr(v.title)) return false
+  if (!isOptBool(v.is_private)) return false
   const data = v.data
   switch (v.type) {
     case 'rich-text':
@@ -222,4 +221,17 @@ export function mentionIdsFromModules(modules: ArticleModule[], excludeId?: stri
     m.data.doc.content.forEach(node => collectMentionIds(node, ids))
   }
   return [...new Set(ids)].filter(id => id !== excludeId)
+}
+
+// ── Niebla de guerra ──────────────────────────────────────────────────────
+
+/**
+ * Recorta los elementos marcados con `is_private: true`.
+ * El filtro se aplica antes de enviar el JSONB al cliente cuando el
+ * solicitante NO es el propietario del mundo.
+ */
+export function stripPrivateBlocks<T extends { is_private?: boolean }>(
+  items: T[],
+): T[] {
+  return items.filter(item => item.is_private !== true)
 }

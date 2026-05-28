@@ -27,6 +27,8 @@ export interface HeaderField {
   label: string
   value: string
   type: HeaderFieldType
+  /** Niebla de guerra: el server filtra estos para no-propietarios. */
+  is_private?: boolean
 }
 
 // ── Módulos del artículo ──────────────────────────────────────────────────
@@ -40,17 +42,20 @@ export type ArticleModuleType =
   | 'relations-manager'
   | 'family-tree'
 
-export interface RichTextModule {
+interface ArticleModuleBase {
   id: string
-  type: 'rich-text'
   title: string
+  /** Niebla de guerra: el server filtra estos para no-propietarios. */
+  is_private?: boolean
+}
+
+export interface RichTextModule extends ArticleModuleBase {
+  type: 'rich-text'
   data: { doc: TipTapContent }
 }
 
-export interface ImageModule {
-  id: string
+export interface ImageModule extends ArticleModuleBase {
   type: 'image'
-  title: string
   data: { url: string | null; path: string | null; alt: string }
 }
 
@@ -60,41 +65,31 @@ export interface ChartRow {
   value: number
 }
 
-export interface ChartModule {
-  id: string
+export interface ChartModule extends ArticleModuleBase {
   type: 'chart'
-  title: string
   data: { kind: 'radar' | 'bar'; rows: ChartRow[] }
 }
 
-export interface RelationsGraphModule {
-  id: string
+export interface RelationsGraphModule extends ArticleModuleBase {
   type: 'relations-graph'
-  title: string
   data: Record<string, never>
 }
 
 export interface TableColumn { id: string; label: string }
 export interface TableRow    { id: string; cells: Record<string, string> }
 
-export interface TableModule {
-  id: string
+export interface TableModule extends ArticleModuleBase {
   type: 'table'
-  title: string
   data: { columns: TableColumn[]; rows: TableRow[] }
 }
 
-export interface RelationsManagerModule {
-  id: string
+export interface RelationsManagerModule extends ArticleModuleBase {
   type: 'relations-manager'
-  title: string
   data: Record<string, never>
 }
 
-export interface FamilyTreeModule {
-  id: string
+export interface FamilyTreeModule extends ArticleModuleBase {
   type: 'family-tree'
-  title: string
   /** Referencia a un árbol genealógico del mundo. `null` = sin asignar. */
   data: { treeId: string | null }
 }
@@ -195,11 +190,15 @@ export interface ArticleRelationEdge extends ArticleRef {
   relationId: string
   connectionType: RelationConnectionType
   label: string | null
+  /** Sólo presente en aristas semánticas. NULL = sin ponderar. */
+  diplomacyScore: number | null
 }
 
 export interface ArticleWithRelations extends Article {
   outgoing: ArticleRelationEdge[]
   incoming: ArticleRelationEdge[]
+  /** True si el usuario actual es dueño del mundo del artículo. */
+  is_owner: boolean
 }
 
 // ── Folders ────────────────────────────────────────────────────────────────
@@ -265,6 +264,8 @@ export interface GraphLink {
   target: string
   connection_type: RelationConnectionType
   relation_label: string | null
+  /** Sólo presente en aristas semánticas. NULL = sin ponderar. */
+  diplomacy_score: number | null
 }
 
 export interface GraphData {

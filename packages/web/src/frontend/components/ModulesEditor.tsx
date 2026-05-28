@@ -14,6 +14,7 @@ import { TableModuleView } from './modules/TableModuleView'
 import { RelationsGraphModuleView } from './modules/RelationsGraphModuleView'
 import { RelationsManagerModuleView } from './modules/RelationsManagerModuleView'
 import { FamilyTreeModuleView } from './modules/FamilyTreeModuleView'
+import { PrivacyToggle, PRIVATE_BLOCK_CLASS } from './PrivacyToggle'
 
 interface Props {
   worldId: string
@@ -77,14 +78,39 @@ export function ModulesEditor({
     onChange(value.map(m => (m.id === id ? ({ ...m, title } as ArticleModule) : m)))
   }, [value, onChange])
 
+  const togglePrivacy = useCallback((id: string, isPrivate: boolean) => {
+    onChange(value.map(m => {
+      if (m.id !== id) return m
+      // Cuando is_private=false dejamos la propiedad fuera del JSON.
+      if (!isPrivate) {
+        const { is_private: _drop, ...rest } = m
+        return rest as ArticleModule
+      }
+      return { ...m, is_private: true } as ArticleModule
+    }))
+  }, [value, onChange])
+
   return (
     <section className="space-y-4">
-      {value.map((mod, idx) => (
-        <article key={mod.id} className="rounded-lg border border-gray-200 bg-white">
+      {value.map((mod, idx) => {
+        const isPrivate = mod.is_private === true
+        return (
+        <article
+          key={mod.id}
+          className={
+            'rounded-lg border border-gray-200 bg-white ' +
+            (isPrivate ? PRIVATE_BLOCK_CLASS : '')
+          }
+        >
           <header className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50 rounded-t-lg">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 px-2 py-0.5 rounded bg-gray-200">
               {MODULE_LABELS[mod.type]}
             </span>
+            {isPrivate && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 px-2 py-0.5 rounded bg-amber-100 border border-amber-200">
+                Secreto
+              </span>
+            )}
             <input
               type="text"
               value={mod.title}
@@ -92,6 +118,12 @@ export function ModulesEditor({
               placeholder="Título del módulo"
               aria-label="Título del módulo"
               className="flex-1 min-w-0 text-sm font-medium bg-transparent focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5"
+            />
+            <PrivacyToggle
+              isPrivate={isPrivate}
+              onToggle={next => togglePrivacy(mod.id, next)}
+              label={mod.title || MODULE_LABELS[mod.type]}
+              compact
             />
             <div className="flex items-center gap-0.5 text-gray-400">
               <button
@@ -164,7 +196,8 @@ export function ModulesEditor({
             )}
           </div>
         </article>
-      ))}
+        )
+      })}
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <span className="text-xs font-medium text-gray-500">Añadir módulo:</span>
