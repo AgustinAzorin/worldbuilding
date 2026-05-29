@@ -384,3 +384,32 @@ export interface FamilyTreeDetail {
   edges: FamilyTreeEdgeRow[]
   partnerships: FamilyTreePartnerRow[]
 }
+
+// ── Maps & Pins ────────────────────────────────────────────────────────────
+
+export type PinType = 'npc' | 'item' | 'event' | 'faction' | 'location'
+
+export interface MapSummary {
+  id: string
+  world_id: string
+  title: string
+  image_url: string
+  created_at: string
+}
+
+export interface MapPin {
+  id: string
+  map_id: string
+  article_id: string | null
+  title: string
+  x: number
+  y: number
+  pin_type: PinType
+  created_at: string
+  /** JOIN con articles — presente en getWithPins */
+  article?: { id: string; title: string; type: string } | null
+}
+
+export interface MapWithPins extends MapSummary {
+  pins: MapPin[]
+}

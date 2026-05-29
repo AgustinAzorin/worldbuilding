@@ -19,6 +19,40 @@ function sanitizeName(name: string): string {
 }
 
 /**
+ * Sube una imagen al bucket público `map-images` y devuelve su URL pública.
+ */
+export async function uploadMapImage(
+  worldId: string,
+  file: File,
+): Promise<UploadedImage> {
+  if (!ALLOWED.includes(file.type)) {
+    throw new Error(`Tipo de archivo no soportado: ${file.type || 'desconocido'}`)
+  }
+  if (file.size > MAX_BYTES) {
+    throw new Error(`La imagen supera ${Math.round(MAX_BYTES / 1024 / 1024)} MB`)
+  }
+
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Debés iniciar sesión para subir imágenes')
+
+  const path = `${user.id}/${worldId}/${randomId()}-${sanitizeName(file.name)}`
+
+  const { error } = await supabase.storage
+    .from('map-images')
+    .upload(path, file, {
+      cacheControl: '3600',
+      contentType: file.type,
+      upsert: false,
+    })
+
+  if (error) throw new Error(error.message)
+
+  const { data } = supabase.storage.from('map-images').getPublicUrl(path)
+  return { url: data.publicUrl, path }
+}
+
+/**
  * Sube una imagen al bucket público `article-assets` y devuelve su URL pública.
  * Lanza si el archivo excede el límite o el MIME no está permitido.
  */

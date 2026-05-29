@@ -305,6 +305,40 @@ export const api = {
       request<void>('DELETE', `/articles/relations/${relationId}`, token),
   },
 
+  maps: {
+    list: (token: string, worldId: string) =>
+      request<import('./types').MapSummary[]>(
+        'GET',
+        `/maps?worldId=${encodeURIComponent(worldId)}`,
+        token,
+      ),
+
+    create: (token: string, worldId: string, title: string, imageUrl: string) =>
+      request<import('./types').MapSummary>('POST', '/maps', token, {
+        worldId,
+        title,
+        imageUrl,
+      }),
+
+    getWithPins: (token: string, mapId: string) =>
+      request<import('./types').MapWithPins>('GET', `/maps/${mapId}`, token),
+
+    savePin: (
+      token: string,
+      pin: {
+        mapId: string
+        articleId?: string | null
+        title: string
+        x: number
+        y: number
+        pinType: import('./types').PinType
+      },
+    ) => request<import('./types').MapPin>('POST', '/maps/pins', token, pin),
+
+    deletePin: (token: string, pinId: string) =>
+      request<void>('DELETE', `/maps/pins/${pinId}`, token),
+  },
+
   templates: {
     list: (token: string, worldId: string) =>
       request<import('./types').ArticleTemplateSummary[]>(

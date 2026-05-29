@@ -8,7 +8,7 @@ interface Props {
   worldTitle: string
 }
 
-type ModuleKey = 'biblioteca' | 'arbol' | 'timeline' | 'facciones'
+type ModuleKey = 'biblioteca' | 'arbol' | 'timeline' | 'facciones' | 'mapas'
 
 interface ModuleDef {
   key: ModuleKey
@@ -51,6 +51,14 @@ const MODULES: ModuleDef[] = [
     href: '/organizations',
     active: (p, base) => p.startsWith(`${base}/organizations`),
     activeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  },
+  {
+    key: 'mapas',
+    label: 'Mapas',
+    icon: '🗺️',
+    href: '/maps',
+    active: (p, base) => p.startsWith(`${base}/maps`),
+    activeClass: 'bg-teal-50 text-teal-700 border-teal-200',
   },
 ]
 
