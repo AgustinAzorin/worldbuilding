@@ -141,3 +141,25 @@
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
+
+/* ── Cartografía / Leaflet ─────────────────────────────── */
+
+/* El divIcon trae su propio estilo: limpiamos el chrome por defecto. */
+.wb-map-pin {
+  background: transparent;
+  border: none;
+}
+
+.wb-map-pin > div {
+  transition: transform 0.12s ease;
+}
+
+.wb-map-pin:hover > div {
+  transform: scale(1.18);
+  cursor: pointer;
+}
+
+@keyframes wb-pin-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.25); }
+}
