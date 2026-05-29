@@ -208,6 +208,74 @@ export interface ArticleSuggestion {
   title: string
 }
 
+// ── Cartografía (Fase 9) ────────────────────────────────────────────────────
+
+/** Categoría visual de un marcador del mapa. */
+export type PinType = 'npc' | 'item' | 'event' | 'faction' | 'location'
+
+export const PIN_TYPES: ReadonlyArray<PinType> = [
+  'npc',
+  'item',
+  'event',
+  'faction',
+  'location',
+]
+
+/** Etiqueta + color (Tailwind) por tipo de pin, compartido por toda la UI. */
+export const PIN_TYPE_META: Record<
+  PinType,
+  { label: string; color: string; emoji: string }
+> = {
+  npc:      { label: 'NPC',       color: '#ef4444', emoji: '⚔️' },
+  item:     { label: 'Ítem',      color: '#eab308', emoji: '💎' },
+  event:    { label: 'Evento',    color: '#a855f7', emoji: '⚡' },
+  faction:  { label: 'Facción',   color: '#22c55e', emoji: '🏛️' },
+  location: { label: 'Ubicación', color: '#3b82f6', emoji: '📍' },
+}
+
+/** Fila compacta para listar los mapas de un mundo. */
+export interface MapSummary {
+  id: string
+  world_id: string
+  title: string
+  image_url: string
+  created_at: string
+  pin_count: number
+}
+
+/** Un marcador posicionado sobre un mapa (coordenadas relativas 0..1). */
+export interface MapPin {
+  id: string
+  map_id: string
+  article_id: string | null
+  title: string
+  x: number
+  y: number
+  pin_type: PinType
+  created_at: string
+  /** Artículo enlazado (JOIN). `null` si el pin es sólo una etiqueta. */
+  article: { id: string; title: string; type: ArticleType } | null
+}
+
+/** Un mapa con todos sus pines resueltos. */
+export interface MapWithPins {
+  id: string
+  world_id: string
+  title: string
+  image_url: string
+  created_at: string
+  pins: MapPin[]
+}
+
+/** Payload que viaja al server al crear/persistir un pin. */
+export interface SavePinPayload {
+  title: string
+  articleId?: string | null
+  x: number
+  y: number
+  pinType: PinType
+}
+
 export type RelationConnectionType = 'mention' | 'semantic'
 
 export interface ArticleRef {

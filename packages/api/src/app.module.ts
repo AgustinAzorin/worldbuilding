@@ -6,6 +6,7 @@ import { FoldersModule } from './folders/folders.module'
 import { TemplatesModule } from './templates/templates.module'
 import { TreesModule } from './trees/trees.module'
 import { OrganizationsModule } from './organizations/organizations.module'
+import { MapsModule } from './maps/maps.module'
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { OrganizationsModule } from './organizations/organizations.module'
     TemplatesModule,
     TreesModule,
     OrganizationsModule,
+    MapsModule,
   ],
 })
 export class AppModule {}

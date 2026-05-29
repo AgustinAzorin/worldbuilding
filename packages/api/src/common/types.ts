@@ -27,6 +27,28 @@ export function isArticleType(v: unknown): v is ArticleType {
   return v === 'document' || v === 'event' || v === 'organization'
 }
 
+// ── Cartografía: tipo de marcador (pin) ───────────────────────────────────
+
+export type PinType = 'npc' | 'item' | 'event' | 'faction' | 'location'
+
+export const PIN_TYPES: ReadonlyArray<PinType> = [
+  'npc',
+  'item',
+  'event',
+  'faction',
+  'location',
+]
+
+export function isPinType(v: unknown): v is PinType {
+  return (
+    v === 'npc' ||
+    v === 'item' ||
+    v === 'event' ||
+    v === 'faction' ||
+    v === 'location'
+  )
+}
+
 // ── Article relations ─────────────────────────────────────────────────────
 
 export type RelationConnectionType = 'mention' | 'semantic'
